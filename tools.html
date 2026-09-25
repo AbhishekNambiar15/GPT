@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tools · MiniGPT</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0d16; --panel:#11151f; --panel2:#161b28; --line:#232a3a;
+  --text:#eef0f5; --dim:#8993a8; --dim2:#5d6579; --purple:#6366f1;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:14px;
+  display:flex;flex-direction:column;height:100vh;overflow:hidden;}
+.app-grid{flex:1;min-height:0;display:grid;grid-template-columns:264px 1fr;overflow:hidden;}
+::-webkit-scrollbar{width:6px;} ::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px;}
+.mini-bar{height:64px;flex:none;background:var(--panel);border-top:1px solid var(--line);
+  display:flex;align-items:center;gap:14px;padding:0 20px;}
+.mini-bar.empty{opacity:.6;}
+.mini-art{width:40px;height:40px;border-radius:9px;background:linear-gradient(135deg,#4c3a7a,#1e3a5f);
+  background-size:cover;background-position:center;flex:none;}
+.mini-info{width:170px;flex:none;overflow:hidden;}
+.mini-title{font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mini-artist{font-size:11px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mini-controls{flex:1;display:flex;align-items:center;gap:10px;}
+.mini-time{font-size:10.5px;color:var(--dim2);width:32px;flex:none;text-align:center;}
+.mini-controls input[type=range]{-webkit-appearance:none;flex:1;height:4px;border-radius:2px;background:var(--line);outline:none;}
+.mini-controls input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:var(--purple);cursor:pointer;}
+.mini-controls input[type=range]:disabled::-webkit-slider-thumb{background:var(--dim2);}
+#miniPlayBtn{width:36px;height:36px;border-radius:50%;background:var(--purple);border:none;color:#fff;font-size:14px;cursor:pointer;flex:none;}
+#miniPlayBtn:disabled{background:var(--panel2);color:var(--dim2);cursor:not-allowed;}
+#sidebar{background:var(--panel);border-right:1px solid var(--line);padding:22px 16px;
+  display:flex;flex-direction:column;gap:22px;overflow-y:auto;}
+.brand{display:flex;align-items:center;gap:10px;padding:0 4px;}
+.brand .logo{width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,#818cf8,#6366f1);
+  display:flex;align-items:center;justify-content:center;font-size:18px;}
+.brand h1{font-size:16px;font-weight:700;} .brand p{font-size:11px;color:var(--dim);}
+nav{display:flex;flex-direction:column;gap:2px;}
+nav a{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;
+  color:var(--dim);text-decoration:none;font-weight:500;font-size:13.5px;}
+nav a .ic{width:18px;text-align:center;}
+nav a.active{background:var(--purple);color:#fff;}
+nav a:hover:not(.active){background:var(--panel2);color:var(--text);}
+#main{display:flex;flex-direction:column;min-width:0;overflow-y:auto;}
+#top{padding:20px 28px;border-bottom:1px solid var(--line);}
+#top h2{font-size:21px;font-weight:700;} #top p{font-size:12.5px;color:var(--dim);margin-top:2px;}
+#content{padding:28px;display:grid;grid-template-columns:1fr 1fr;gap:18px;max-width:760px;}
+.card{background:var(--panel2);border:1px solid var(--line);border-radius:16px;padding:20px;}
+.card h3{font-size:14px;font-weight:700;margin-bottom:4px;}
+.card p{font-size:12px;color:var(--dim);margin-bottom:16px;}
+.timer-display{font-size:38px;font-weight:700;text-align:center;font-variant-numeric:tabular-nums;margin:10px 0 16px;}
+.timer-row{display:flex;gap:8px;justify-content:center;}
+.timer-row button{all:unset;background:var(--bg);border:1px solid var(--line);border-radius:9px;
+  padding:8px 14px;font-size:12px;color:var(--dim);cursor:pointer;}
+.timer-row button.primary{background:var(--purple);color:#fff;border-color:var(--purple);}
+.timer-row button:hover{color:var(--text);}
+.search-row{display:flex;gap:8px;margin-top:4px;}
+.search-row input{flex:1;background:var(--bg);border:1px solid var(--line);border-radius:10px;
+  padding:10px 12px;color:var(--text);font-size:13px;}
+.search-row button{all:unset;background:var(--purple);color:#fff;padding:10px 16px;border-radius:10px;
+  font-size:12.5px;font-weight:600;cursor:pointer;}
+.calc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px;}
+.calc-grid button{all:unset;background:var(--bg);border:1px solid var(--line);border-radius:8px;
+  padding:10px 0;text-align:center;font-size:13px;cursor:pointer;}
+.calc-grid button:hover{color:var(--purple);}
+#calcDisplay{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;
+  text-align:right;font-size:18px;margin-bottom:8px;font-variant-numeric:tabular-nums;}
+</style>
+</head>
+<body>
+<div class="app-grid">
+<div id="sidebar">
+  <div class="brand"><div class="logo">🧠</div><div><h1>MiniGPT</h1><p>Your AI Companion</p></div></div>
+  <nav>
+    <a href="index.html"><span class="ic">💬</span>Chat</a>
+    <a href="music.html"><span class="ic">🎵</span>Music</a>
+    <a href="memory.html"><span class="ic">🧠</span>Memory</a>
+    <a href="modes.html"><span class="ic">▦</span>Modes</a>
+    <a href="tools.html" class="active"><span class="ic">🔧</span>Tools</a>
+    <a href="settings.html"><span class="ic">⚙</span>Settings</a>
+  </nav>
+</div>
+
+<div id="main">
+  <div id="top"><h2>Tools</h2><p>Quick utilities you can use without leaving MiniGPT.</p></div>
+  <div id="content">
+    <div class="card">
+      <h3>⏱ Timer</h3>
+      <p>Great for focused study or work sprints.</p>
+      <div class="timer-display" id="timerDisplay">25:00</div>
+      <div class="timer-row">
+        <button data-min="5">5m</button>
+        <button data-min="15">15m</button>
+        <button data-min="25">25m</button>
+        <button class="primary" id="timerToggle">Start</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>🔍 Web Search</h3>
+      <p>Search the web in a new tab.</p>
+      <div class="search-row">
+        <input id="searchInput" placeholder="Search anything…">
+        <button id="searchBtn">Go</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>🧮 Calculator</h3>
+      <p>Quick math while you chat.</p>
+      <div id="calcDisplay">0</div>
+      <div class="calc-grid" id="calcGrid"></div>
+    </div>
+
+    <div class="card">
+      <h3>📝 Quick Note</h3>
+      <p>Jot something down — it'll be added to your memory.</p>
+      <div class="search-row">
+        <input id="noteInput" placeholder="Type a quick note…">
+        <button id="noteBtn">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="mini-bar empty" id="miniPlayerBar">
+  <div class="mini-art" id="miniArt"></div>
+  <div class="mini-info">
+    <div class="mini-title" id="miniTitle">Nothing playing</div>
+    <div class="mini-artist" id="miniArtist">Go to Music to search a song</div>
+  </div>
+  <div class="mini-controls">
+    <span class="mini-time" id="miniCur">0:00</span>
+    <input type="range" id="miniSeek" min="0" max="100" value="0" disabled>
+    <span class="mini-time" id="miniDur">0:00</span>
+  </div>
+  <button id="miniPlayBtn" disabled>▶</button>
+</div>
+<audio id="miniAudio" preload="none"></audio>
+<script src="player.js"></script>
+
+<script>
+function getUsername(){ return localStorage.getItem('mg_username') || ''; }
+if(!getUsername()){ location.href = 'welcome.html'; }
+function addActivity(icon, text){
+  const arr = JSON.parse(localStorage.getItem('mg_activity') || '[]');
+  arr.unshift({icon, text, time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})});
+  localStorage.setItem('mg_activity', JSON.stringify(arr.slice(0, 20)));
+}
+function addMemory(icon, text){
+  const arr = JSON.parse(localStorage.getItem('mg_memory') || '[]');
+  arr.unshift({icon, text});
+  localStorage.setItem('mg_memory', JSON.stringify(arr.slice(0, 30)));
+}
+
+/* Timer */
+let seconds = 25*60, running = false, iv = null;
+function paint(){
+  const m = Math.floor(seconds/60).toString().padStart(2,'0');
+  const s = (seconds%60).toString().padStart(2,'0');
+  document.getElementById('timerDisplay').textContent = `${m}:${s}`;
+}
+document.querySelectorAll('.timer-row button[data-min]').forEach(b=>{
+  b.onclick = () => { seconds = parseInt(b.dataset.min)*60; paint(); };
+});
+document.getElementById('timerToggle').onclick = (e) => {
+  running = !running;
+  e.target.textContent = running ? 'Pause' : 'Start';
+  if(running){
+    addActivity('⏱', 'Started a timer');
+    iv = setInterval(()=>{
+      if(seconds>0){ seconds--; paint(); }
+      else { clearInterval(iv); running=false; document.getElementById('timerToggle').textContent='Start'; addActivity('⏱','Timer finished'); }
+    },1000);
+  } else { clearInterval(iv); }
+};
+paint();
+
+/* Search */
+function runSearch(){
+  const q = document.getElementById('searchInput').value.trim();
+  if(!q) return;
+  addActivity('🔍', `Searched the web for "${q}"`);
+  window.open(`https://www.google.com/search?q=${encodeURIComponent(q)}`, '_blank');
+}
+document.getElementById('searchBtn').onclick = runSearch;
+document.getElementById('searchInput').addEventListener('keydown', e=>{ if(e.key==='Enter') runSearch(); });
+
+/* Calculator */
+let calcExpr = '';
+const keys = ['7','8','9','/','4','5','6','*','1','2','3','-','C','0','=','+'];
+document.getElementById('calcGrid').innerHTML = keys.map(k=>`<button data-k="${k}">${k}</button>`).join('');
+document.querySelectorAll('#calcGrid button').forEach(b=>{
+  b.onclick = () => {
+    const k = b.dataset.k;
+    if(k==='C'){ calcExpr=''; }
+    else if(k==='='){
+      try{ calcExpr = String(Function(`"use strict";return (${calcExpr})`)()); }
+      catch(e){ calcExpr = 'Error'; }
+    } else { calcExpr += k; }
+    document.getElementById('calcDisplay').textContent = calcExpr || '0';
+  };
+});
+
+/* Quick note -> memory */
+document.getElementById('noteBtn').onclick = () => {
+  const input = document.getElementById('noteInput');
+  const val = input.value.trim();
+  if(!val) return;
+  addMemory('📝', val);
+  addActivity('📝', 'Saved a quick note');
+  input.value = '';
+};
+document.getElementById('noteInput').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('noteBtn').click(); });
+</script>
+</body>
+</html>

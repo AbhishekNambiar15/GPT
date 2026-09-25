@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Music · MiniGPT</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0d16; --panel:#11151f; --panel2:#161b28; --line:#232a3a;
+  --text:#eef0f5; --dim:#8993a8; --dim2:#5d6579; --purple:#6366f1; --purple-dim:#3730a3; --green:#22c55e; --red:#ef4444;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:14px;
+  display:flex;flex-direction:column;height:100vh;overflow:hidden;}
+.app-grid{flex:1;min-height:0;display:grid;grid-template-columns:264px 1fr;overflow:hidden;}
+::-webkit-scrollbar{width:6px;} ::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px;}
+.mini-bar{height:64px;flex:none;background:var(--panel);border-top:1px solid var(--line);
+  display:flex;align-items:center;gap:14px;padding:0 20px;}
+.mini-bar.empty{opacity:.6;}
+.mini-art{width:40px;height:40px;border-radius:9px;background:linear-gradient(135deg,#4c3a7a,#1e3a5f);
+  background-size:cover;background-position:center;flex:none;}
+.mini-info{width:170px;flex:none;overflow:hidden;}
+.mini-title{font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mini-artist{font-size:11px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mini-controls{flex:1;display:flex;align-items:center;gap:10px;}
+.mini-time{font-size:10.5px;color:var(--dim2);width:32px;flex:none;text-align:center;}
+.mini-controls input[type=range]{-webkit-appearance:none;flex:1;height:4px;border-radius:2px;background:var(--line);outline:none;}
+.mini-controls input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:var(--purple);cursor:pointer;}
+.mini-controls input[type=range]:disabled::-webkit-slider-thumb{background:var(--dim2);}
+#miniPlayBtn{width:36px;height:36px;border-radius:50%;background:var(--purple);border:none;color:#fff;font-size:14px;cursor:pointer;flex:none;}
+#miniPlayBtn:disabled{background:var(--panel2);color:var(--dim2);cursor:not-allowed;}
+
+#sidebar{background:var(--panel);border-right:1px solid var(--line);padding:22px 16px;
+  display:flex;flex-direction:column;gap:22px;overflow-y:auto;}
+.brand{display:flex;align-items:center;gap:10px;padding:0 4px;}
+.brand .logo{width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,#818cf8,#6366f1);
+  display:flex;align-items:center;justify-content:center;font-size:18px;}
+.brand h1{font-size:16px;font-weight:700;} .brand p{font-size:11px;color:var(--dim);}
+nav{display:flex;flex-direction:column;gap:2px;}
+nav a{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;
+  color:var(--dim);text-decoration:none;font-weight:500;font-size:13.5px;}
+nav a .ic{width:18px;text-align:center;}
+nav a.active{background:var(--purple);color:#fff;}
+nav a:hover:not(.active){background:var(--panel2);color:var(--text);}
+#main{display:flex;flex-direction:column;min-width:0;overflow-y:auto;}
+#top{padding:20px 28px;border-bottom:1px solid var(--line);}
+#top h2{font-size:21px;font-weight:700;} #top p{font-size:12.5px;color:var(--dim);margin-top:2px;}
+#content{padding:28px;display:flex;flex-direction:column;gap:20px;max-width:680px;}
+
+.search-row{display:flex;gap:10px;}
+.search-row input{flex:1;background:var(--panel2);border:1px solid var(--line);border-radius:12px;
+  padding:12px 16px;color:var(--text);font-size:14px;}
+.search-row input:focus{outline:none;border-color:var(--purple);}
+.search-row button{all:unset;background:var(--purple);color:#fff;padding:12px 20px;border-radius:12px;
+  font-size:13px;font-weight:600;cursor:pointer;}
+.search-row button:hover{background:#7274f0;}
+.hint{font-size:11.5px;color:var(--dim2);}
+
+.results{display:flex;flex-direction:column;gap:4px;}
+.result{display:flex;align-items:center;gap:12px;padding:9px 10px;border-radius:10px;cursor:pointer;border:1px solid transparent;}
+.result:hover{background:var(--panel2);}
+.result.active{background:var(--panel2);border-color:var(--purple);}
+.result img{width:42px;height:42px;border-radius:8px;flex:none;background:var(--panel2);}
+.result .t{font-weight:600;font-size:13px;} .result .s{font-size:11.5px;color:var(--dim);}
+.loading,.empty,.error{font-size:12.5px;color:var(--dim2);padding:8px 2px;}
+.error{color:var(--red);}
+</style>
+</head>
+<body>
+<div class="app-grid">
+<div id="sidebar">
+  <div class="brand"><div class="logo">🧠</div><div><h1>MiniGPT</h1><p>Your AI Companion</p></div></div>
+  <nav>
+    <a href="index.html"><span class="ic">💬</span>Chat</a>
+    <a href="music.html" class="active"><span class="ic">🎵</span>Music</a>
+    <a href="memory.html"><span class="ic">🧠</span>Memory</a>
+    <a href="modes.html"><span class="ic">▦</span>Modes</a>
+    <a href="tools.html"><span class="ic">🔧</span>Tools</a>
+    <a href="settings.html"><span class="ic">⚙</span>Settings</a>
+  </nav>
+</div>
+
+<div id="main">
+  <div id="top"><h2>Music</h2><p>Search for a song — it keeps playing as you browse other pages.</p></div>
+  <div id="content">
+    <div>
+      <div class="search-row">
+        <input id="searchInput" placeholder="Search for a song or artist…">
+        <button id="searchBtn">Search</button>
+      </div>
+      <div class="hint" style="margin-top:8px;">Plays a short preview clip for each track.</div>
+      <div class="results" id="results"></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="mini-bar empty" id="miniPlayerBar">
+  <div class="mini-art" id="miniArt"></div>
+  <div class="mini-info">
+    <div class="mini-title" id="miniTitle">Nothing playing</div>
+    <div class="mini-artist" id="miniArtist">Search for a song above</div>
+  </div>
+  <div class="mini-controls">
+    <span class="mini-time" id="miniCur">0:00</span>
+    <input type="range" id="miniSeek" min="0" max="100" value="0" disabled>
+    <span class="mini-time" id="miniDur">0:00</span>
+  </div>
+  <button id="miniPlayBtn" disabled>▶</button>
+</div>
+<audio id="miniAudio" preload="none"></audio>
+<script src="player.js"></script>
+
+<script>
+function getUsername(){ return localStorage.getItem('mg_username') || ''; }
+if(!getUsername()){ location.href = 'welcome.html'; }
+
+async function runSearch(term){
+  const results = document.getElementById('results');
+  if(!term){ results.innerHTML = ''; return; }
+  results.innerHTML = `<div class="loading">Searching…</div>`;
+  try{
+    const res = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&limit=8`);
+    const data = await res.json();
+    const items = (data.results || []).filter(r => r.previewUrl);
+    if(!items.length){
+      results.innerHTML = `<div class="empty">No playable results for "${term}". Try another search.</div>`;
+      return;
+    }
+    results.innerHTML = items.map((r,i) => `
+      <div class="result" data-i="${i}">
+        <img src="${r.artworkUrl60}" alt="">
+        <div><div class="t">${r.trackName}</div><div class="s">${r.artistName}</div></div>
+      </div>`).join('');
+    document.querySelectorAll('.result').forEach(el => {
+      el.onclick = () => {
+        document.querySelectorAll('.result').forEach(x => x.classList.remove('active'));
+        el.classList.add('active');
+        const r = items[parseInt(el.dataset.i)];
+        window.MiniGPTPlayer.playTrack({
+          title: r.trackName,
+          artist: r.artistName,
+          artwork: r.artworkUrl100 || r.artworkUrl60,
+          preview: r.previewUrl
+        });
+      };
+    });
+  } catch(e){
+    results.innerHTML = `<div class="error">Search failed — check your internet connection and try again.</div>`;
+  }
+}
+document.getElementById('searchBtn').onclick = () => runSearch(document.getElementById('searchInput').value.trim());
+document.getElementById('searchInput').addEventListener('keydown', e => { if(e.key==='Enter') runSearch(e.target.value.trim()); });
+
+const params = new URLSearchParams(location.search);
+if(params.get('q')){
+  document.getElementById('searchInput').value = params.get('q');
+  runSearch(params.get('q'));
+}
+</script>
+</body>
+</html>
