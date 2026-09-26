@@ -1,33 +1,124 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Welcome · MiniGPT</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-:root{
-  --bg:#0a0d16; --panel:#11151f; --panel2:#161b28; --line:#232a3a;
-  --text:#eef0f5; --dim:#8993a8; --dim2:#5d6579; --purple:#6366f1;
-}
-*{box-sizing:border-box;margin:0;padding:0;}
-body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;
-  height:100vh;display:flex;align-items:center;justify-content:center;}
-.card{width:380px;background:var(--panel);border:1px solid var(--line);border-radius:18px;
-  padding:36px 32px;text-align:center;}
-.logo{width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,#818cf8,#6366f1);
-  display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 18px;}
-h1{font-size:20px;font-weight:700;margin-bottom:6px;}
-p{font-size:13px;color:var(--dim);margin-bottom:24px;line-height:1.5;}
-input{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:12px;
-  padding:13px 16px;color:var(--text);font-size:14px;margin-bottom:14px;outline:none;}
-input:focus{border-color:var(--purple);}
-button{all:unset;display:block;width:100%;background:var(--purple);color:#fff;text-align:center;
-  padding:13px 16px;border-radius:12px;font-weight:600;font-size:14px;cursor:pointer;box-sizing:border-box;}
-button:hover{background:#7274f0;}
-.err{font-size:12px;color:#ef4444;height:16px;margin:-6px 0 10px;}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Welcome · MiniGPT</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="shared.css">
+  <style>
+    :root {
+      --bg: #0a0d16;
+      --panel: #11151f;
+      --panel2: #161b28;
+      --line: #232a3a;
+      --text: #eef0f5;
+      --dim: #8993a8;
+      --dim2: #5d6579;
+      --purple: #6366f1;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .card {
+      width: min(380px, calc(100% - 32px));
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 36px 32px;
+      text-align: center;
+    }
+
+    .logo {
+      width: 56px;
+      height: 56px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, #818cf8, #6366f1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      margin: 0 auto 18px;
+    }
+
+    h1 {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    p {
+      font-size: 13px;
+      color: var(--dim);
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+
+    input {
+      width: 100%;
+      background: var(--panel2);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 13px 16px;
+      color: var(--text);
+      font-size: 14px;
+      margin-bottom: 14px;
+      outline: none;
+    }
+
+    input:focus {
+      border-color: var(--purple);
+    }
+
+    button {
+      all: unset;
+      display: block;
+      width: 100%;
+      background: var(--purple);
+      color: #fff;
+      text-align: center;
+      padding: 13px 16px;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      box-sizing: border-box;
+    }
+
+    button:hover {
+      background: #7274f0;
+    }
+
+    .err {
+      font-size: 12px;
+      color: #ef4444;
+      height: 16px;
+      margin: -6px 0 10px;
+    }
+
+    @media (max-width: 420px) {
+      .card {
+        padding: 28px 22px;
+      }
+    }
+  </style>
 </head>
+
 <body>
   <div class="card">
     <div class="logo">🧠</div>
@@ -38,26 +129,27 @@ button:hover{background:#7274f0;}
     <button id="go">Get Started</button>
   </div>
 
-<script>
-// If a name already exists, skip straight to chat.
-if(localStorage.getItem('mg_username')){
-  location.href = 'index.html';
-}
+  <script>
+    // If a name already exists, skip straight to chat.
+    if (localStorage.getItem('mg_username')) {
+      location.href = 'index.html';
+    }
 
-function start(){
-  const val = document.getElementById('name').value.trim();
-  if(!val){
-    document.getElementById('err').textContent = 'Please enter a name to continue.';
-    return;
-  }
-  localStorage.setItem('mg_username', val);
-  if(!localStorage.getItem('mg_activity')) localStorage.setItem('mg_activity','[]');
-  if(!localStorage.getItem('mg_memory')) localStorage.setItem('mg_memory','[]');
-  if(!localStorage.getItem('mg_mode')) localStorage.setItem('mg_mode','Study Mode');
-  location.href = 'index.html';
-}
-document.getElementById('go').onclick = start;
-document.getElementById('name').addEventListener('keydown', e=>{ if(e.key==='Enter') start(); });
-</script>
+    function start() {
+      const val = document.getElementById('name').value.trim();
+      if (!val) {
+        document.getElementById('err').textContent = 'Please enter a name to continue.';
+        return;
+      }
+      localStorage.setItem('mg_username', val);
+      if (!localStorage.getItem('mg_activity')) localStorage.setItem('mg_activity', '[]');
+      if (!localStorage.getItem('mg_memory')) localStorage.setItem('mg_memory', '[]');
+      if (!localStorage.getItem('mg_mode')) localStorage.setItem('mg_mode', 'Study Mode');
+      location.href = 'index.html';
+    }
+    document.getElementById('go').onclick = start;
+    document.getElementById('name').addEventListener('keydown', e => { if (e.key === 'Enter') start(); });
+  </script>
 </body>
+
 </html>

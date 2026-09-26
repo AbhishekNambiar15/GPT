@@ -1,133 +1,142 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Modes · MiniGPT</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-:root{
-  --bg:#0a0d16; --panel:#11151f; --panel2:#161b28; --line:#232a3a;
-  --text:#eef0f5; --dim:#8993a8; --dim2:#5d6579; --purple:#6366f1;
-}
-*{box-sizing:border-box;margin:0;padding:0;}
-body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:14px;
-  display:flex;flex-direction:column;height:100vh;overflow:hidden;}
-.app-grid{flex:1;min-height:0;display:grid;grid-template-columns:264px 1fr;overflow:hidden;}
-::-webkit-scrollbar{width:6px;} ::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px;}
-.mini-bar{height:64px;flex:none;background:var(--panel);border-top:1px solid var(--line);
-  display:flex;align-items:center;gap:14px;padding:0 20px;}
-.mini-bar.empty{opacity:.6;}
-.mini-art{width:40px;height:40px;border-radius:9px;background:linear-gradient(135deg,#4c3a7a,#1e3a5f);
-  background-size:cover;background-position:center;flex:none;}
-.mini-info{width:170px;flex:none;overflow:hidden;}
-.mini-title{font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.mini-artist{font-size:11px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.mini-controls{flex:1;display:flex;align-items:center;gap:10px;}
-.mini-time{font-size:10.5px;color:var(--dim2);width:32px;flex:none;text-align:center;}
-.mini-controls input[type=range]{-webkit-appearance:none;flex:1;height:4px;border-radius:2px;background:var(--line);outline:none;}
-.mini-controls input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:var(--purple);cursor:pointer;}
-.mini-controls input[type=range]:disabled::-webkit-slider-thumb{background:var(--dim2);}
-#miniPlayBtn{width:36px;height:36px;border-radius:50%;background:var(--purple);border:none;color:#fff;font-size:14px;cursor:pointer;flex:none;}
-#miniPlayBtn:disabled{background:var(--panel2);color:var(--dim2);cursor:not-allowed;}
-#sidebar{background:var(--panel);border-right:1px solid var(--line);padding:22px 16px;
-  display:flex;flex-direction:column;gap:22px;overflow-y:auto;}
-.brand{display:flex;align-items:center;gap:10px;padding:0 4px;}
-.brand .logo{width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,#818cf8,#6366f1);
-  display:flex;align-items:center;justify-content:center;font-size:18px;}
-.brand h1{font-size:16px;font-weight:700;} .brand p{font-size:11px;color:var(--dim);}
-nav{display:flex;flex-direction:column;gap:2px;}
-nav a{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:10px;
-  color:var(--dim);text-decoration:none;font-weight:500;font-size:13.5px;}
-nav a .ic{width:18px;text-align:center;}
-nav a.active{background:var(--purple);color:#fff;}
-nav a:hover:not(.active){background:var(--panel2);color:var(--text);}
-#main{display:flex;flex-direction:column;min-width:0;overflow-y:auto;}
-#top{padding:20px 28px;border-bottom:1px solid var(--line);}
-#top h2{font-size:21px;font-weight:700;} #top p{font-size:12.5px;color:var(--dim);margin-top:2px;}
-#content{padding:28px;display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:760px;}
-.mode{background:var(--panel2);border:1px solid var(--line);border-radius:16px;padding:20px;cursor:pointer;}
-.mode:hover{border-color:var(--purple);}
-.mode.selected{border-color:var(--purple);box-shadow:0 0 0 1px var(--purple);}
-.mode .ic{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:12px;}
-.mode .t{font-weight:700;font-size:14.5px;margin-bottom:4px;}
-.mode .s{font-size:12px;color:var(--dim);}
-.mode .badge{display:none;font-size:10.5px;color:var(--purple);font-weight:600;margin-top:10px;}
-.mode.selected .badge{display:block;}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Modes · MiniGPT</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="shared.css">
+  <style>
+    #content {
+      padding: 28px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      max-width: 760px;
+    }
+
+    .mode {
+      background: var(--panel2);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 20px;
+      cursor: pointer;
+    }
+
+    .mode:hover {
+      border-color: var(--purple);
+    }
+
+    .mode.selected {
+      border-color: var(--purple);
+      box-shadow: 0 0 0 1px var(--purple);
+    }
+
+    .mode .ic {
+      width: 40px;
+      height: 40px;
+      border-radius: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      margin-bottom: 12px;
+    }
+
+    .mode .t {
+      font-weight: 700;
+      font-size: 14.5px;
+      margin-bottom: 4px;
+    }
+
+    .mode .s {
+      font-size: 12px;
+      color: var(--dim);
+    }
+
+    .mode .badge {
+      display: none;
+      font-size: 10.5px;
+      color: var(--purple);
+      font-weight: 600;
+      margin-top: 10px;
+    }
+
+    .mode.selected .badge {
+      display: block;
+    }
+  </style>
 </head>
+
 <body>
-<div class="app-grid">
-<div id="sidebar">
-  <div class="brand"><div class="logo">🧠</div><div><h1>MiniGPT</h1><p>Your AI Companion</p></div></div>
-  <nav>
-    <a href="index.html"><span class="ic">💬</span>Chat</a>
-    <a href="music.html"><span class="ic">🎵</span>Music</a>
-    <a href="memory.html"><span class="ic">🧠</span>Memory</a>
-    <a href="modes.html" class="active"><span class="ic">▦</span>Modes</a>
-    <a href="tools.html"><span class="ic">🔧</span>Tools</a>
-    <a href="settings.html"><span class="ic">⚙</span>Settings</a>
-  </nav>
-</div>
+  <div class="app-grid">
+    <div id="sidebar">
+      <div class="brand">
+        <div class="logo">🧠</div>
+        <div>
+          <h1>MiniGPT</h1>
+          <p>Your AI Companion</p>
+        </div>
+      </div>
+      <nav>
+        <a href="index.html"><span class="ic">💬</span>Chat</a>
+        <a href="music.html"><span class="ic">🎵</span>Music</a>
+        <a href="memory.html"><span class="ic">🧠</span>Memory</a>
+        <a href="modes.html" class="active"><span class="ic">▦</span>Modes</a>
+        <a href="tools.html"><span class="ic">🔧</span>Tools</a>
+        <a href="settings.html"><span class="ic">⚙</span>Settings</a>
+      </nav>
+    </div>
 
-<div id="main">
-  <div id="top"><h2>Modes</h2><p>Choose how you'd like MiniGPT to behave right now.</p></div>
-  <div id="content"></div>
-</div>
-</div>
-
-<div class="mini-bar empty" id="miniPlayerBar">
-  <div class="mini-art" id="miniArt"></div>
-  <div class="mini-info">
-    <div class="mini-title" id="miniTitle">Nothing playing</div>
-    <div class="mini-artist" id="miniArtist">Go to Music to search a song</div>
+    <div id="main">
+      <div id="top">
+        <h2>Modes</h2>
+        <p>Choose how you'd like MiniGPT to behave right now.</p>
+      </div>
+      <div id="content"></div>
+    </div>
   </div>
-  <div class="mini-controls">
-    <span class="mini-time" id="miniCur">0:00</span>
-    <input type="range" id="miniSeek" min="0" max="100" value="0" disabled>
-    <span class="mini-time" id="miniDur">0:00</span>
-  </div>
-  <button id="miniPlayBtn" disabled>▶</button>
-</div>
-<audio id="miniAudio" preload="none"></audio>
-<script src="player.js"></script>
 
-<script>
-function getUsername(){ return localStorage.getItem('mg_username') || ''; }
-if(!getUsername()){ location.href = 'welcome.html'; }
-function addActivity(icon, text){
-  const arr = JSON.parse(localStorage.getItem('mg_activity') || '[]');
-  arr.unshift({icon, text, time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})});
-  localStorage.setItem('mg_activity', JSON.stringify(arr.slice(0, 20)));
-}
-function getMode(){ return localStorage.getItem('mg_mode') || 'Study Mode'; }
+  <script src="player.js"></script>
 
-const MODES = [
-  {name:'Study Mode', icon:'📗', bg:'#16412c', color:'#22c55e', desc:'Focus · Learn · Grow'},
-  {name:'Work Mode', icon:'💼', bg:'#1e3a5f', color:'#60a5fa', desc:'Tasks · Deadlines · Output'},
-  {name:'Creative Mode', icon:'🎨', bg:'#4c1d5f', color:'#e879f9', desc:'Brainstorm · Explore · Play'},
-  {name:'Relax Mode', icon:'🌙', bg:'#312e5f', color:'#a5b4fc', desc:'Unwind · Chat · Slow down'}
-];
+  <script>
+    function getUsername() { return localStorage.getItem('mg_username') || ''; }
+    if (!getUsername()) { location.href = 'welcome.html'; }
+    function addActivity(icon, text) {
+      const arr = JSON.parse(localStorage.getItem('mg_activity') || '[]');
+      arr.unshift({ icon, text, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
+      localStorage.setItem('mg_activity', JSON.stringify(arr.slice(0, 20)));
+    }
+    function getMode() { return localStorage.getItem('mg_mode') || 'Study Mode'; }
 
-function render(){
-  const current = getMode();
-  const el = document.getElementById('content');
-  el.innerHTML = MODES.map(m => `
-    <div class="mode ${m.name===current?'selected':''}" data-name="${m.name}">
+    const MODES = [
+      { name: 'Study Mode', icon: '📗', bg: '#16412c', color: '#22c55e', desc: 'Focus · Learn · Grow' },
+      { name: 'Work Mode', icon: '💼', bg: '#1e3a5f', color: '#60a5fa', desc: 'Tasks · Deadlines · Output' },
+      { name: 'Creative Mode', icon: '🎨', bg: '#4c1d5f', color: '#e879f9', desc: 'Brainstorm · Explore · Play' },
+      { name: 'Relax Mode', icon: '🌙', bg: '#312e5f', color: '#a5b4fc', desc: 'Unwind · Chat · Slow down' }
+    ];
+
+    function render() {
+      const current = getMode();
+      const el = document.getElementById('content');
+      el.innerHTML = MODES.map(m => `
+    <div class="mode ${m.name === current ? 'selected' : ''}" data-name="${m.name}">
       <div class="ic" style="background:${m.bg};color:${m.color};">${m.icon}</div>
       <div class="t">${m.name}</div>
       <div class="s">${m.desc}</div>
       <div class="badge">✓ Active</div>
     </div>`).join('');
-  document.querySelectorAll('.mode').forEach(card => {
-    card.onclick = () => {
-      localStorage.setItem('mg_mode', card.dataset.name);
-      addActivity('▦', `Switched to ${card.dataset.name}`);
-      render();
-    };
-  });
-}
-render();
-</script>
+      document.querySelectorAll('.mode').forEach(card => {
+        card.onclick = () => {
+          localStorage.setItem('mg_mode', card.dataset.name);
+          addActivity('▦', `Switched to ${card.dataset.name}`);
+          render();
+        };
+      });
+    }
+    render();
+  </script>
 </body>
+
 </html>

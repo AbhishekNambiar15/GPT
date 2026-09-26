@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>MiniGPT</title>
+    <link rel="stylesheet" href="shared.css">
+    <style>
+        * {
+            box-sizing: border-box
+        }
+
+        html,
+        body,
+        #contentFrame,
+        #musicFrame {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            border: 0
+        }
+
+        body {
+            overflow: hidden;
+            background: #0a0d16
+        }
+
+        #musicFrame {
+            display: none
+        }
+    </style>
+</head>
+
+<body>
+    <iframe id="contentFrame" src="index.html" title="MiniGPT application"></iframe>
+    <iframe id="musicFrame" src="music.html" title="MiniGPT music player"></iframe>
+    <script>
+        const contentFrame = document.getElementById('contentFrame');
+        const musicFrame = document.getElementById('musicFrame');
+        const allowedPages = new Set(['index.html', 'memory.html', 'modes.html', 'tools.html', 'settings.html', 'welcome.html']);
+
+        function showPage(page) {
+            if (page === 'music.html') {
+                contentFrame.style.display = 'none';
+                musicFrame.style.display = 'block';
+                return;
+            }
+            if (!allowedPages.has(page)) return;
+            musicFrame.style.display = 'none';
+            contentFrame.style.display = 'block';
+            if (contentFrame.contentWindow.location.pathname.endsWith('/' + page)) return;
+            contentFrame.src = page;
+        }
+
+        window.addEventListener('message', event => {
+            if (event.origin !== location.origin) return;
+            if (!event.data) return;
+            if (event.data.type === 'navigate') showPage(event.data.page);
+            if (event.data.type === 'player-command') {
+                musicFrame.contentWindow.postMessage(event.data, location.origin);
+            }
+            if (event.data.type === 'player-state') {
+                contentFrame.contentWindow.postMessage(event.data, location.origin);
+            }
+        });
+    </script>
+</body>
+
+</html>
