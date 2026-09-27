@@ -1,4 +1,19 @@
-/* Shared persistent player state and controls across MiniGPT's pages. */
+/* Shared persistent player state and controls across MiniGPT's pages.
+
+   Global Music State (persisted in localStorage under 'mg_playerstate'):
+     - current track fields: title, artist, artwork, provider ('youtube'|'archive'),
+       videoId / preview, time, duration, playing
+     - history:        array of every track that has actually been played, in order
+     - historyIndex:   pointer into history for the track currently playing/loaded
+     - upNext:         manual "Play Next / Add to Queue" list (separate from history)
+     - autoPlay:       whether autoplay-recommendations are enabled
+
+   Search results (from Internet Archive or YouTube search) are NEVER written into
+   this state as a playback sequence. They only feed three actions: "play this now"
+   (starts a new branch of history), "add to queue" and "play next" (both go to
+   upNext). Next/Previous and natural song-end all resolve through one controller
+   (see `advance()` / `previousTrack()` below) so they can never fall back to
+   replaying old search results. */
 (function () {
   function getState() {
     try { return JSON.parse(localStorage.getItem('mg_playerstate') || 'null'); }
@@ -14,6 +29,41 @@
     if (!isFinite(t)) return '0:00';
     const m = Math.floor(t / 60), s = Math.floor(t % 60).toString().padStart(2, '0');
     return `${m}:${s}`;
+  }
+  function hasPlayableTrack(state) {
+    return Boolean(state && (state.preview || (state.provider === 'youtube' && state.videoId)));
+  }
+  function normalizeTitle(title) {
+    if (!title) return '';
+    let t = title.toLowerCase();
+    t = t.replace(/\([^)]*\)/g, ' ').replace(/\[[^\]]*\]/g, ' ');
+    t = t.replace(/\b(official\s*(music\s*)?video|official\s*audio|official|lyrics?|lyric\s*video|audio|video|hd|hq|4k|remaster(ed)?|live|explicit|clean|visualizer|full\s*version|mv)\b/g, ' ');
+    t = t.replace(/\bft\.?\b|\bfeat\.?\b/g, ' ');
+    t = t.replace(/[^a-z0-9\s]/g, ' ');
+    t = t.replace(/\s+/g, ' ').trim();
+    return t;
+  }
+  function emitQueueChanged() {
+    document.dispatchEvent(new CustomEvent('mg-queue-updated'));
+  }
+  /* A track as stored in upNext / history: provider-agnostic shape. */
+  function normalizeQueueTrack(track) {
+    if (track.provider === 'youtube' || track.videoId) {
+      return {
+        videoId: track.videoId,
+        title: track.title,
+        artist: track.channelTitle || track.artist || 'YouTube',
+        artwork: track.thumbnail || track.artwork || '',
+        provider: 'youtube'
+      };
+    }
+    return {
+      preview: track.preview,
+      title: track.title,
+      artist: track.artist || 'Internet Archive',
+      artwork: track.artwork || '',
+      provider: 'archive'
+    };
   }
 
   let els = null;
@@ -85,8 +135,8 @@
         else sendCommand({ type: 'toggle' });
       };
     }
-    document.getElementById('miniSidePrev').onclick = () => playQueued(-1);
-    document.getElementById('miniSideNext').onclick = () => playQueued(1);
+    document.getElementById('miniSidePrev').onclick = () => previousTrack();
+    document.getElementById('miniSideNext').onclick = () => nextTrack();
     document.getElementById('miniSideAuto').onclick = () => toggleAutoPlay();
   }
 
@@ -101,7 +151,7 @@
     const cur = document.getElementById('miniSideCur');
     const dur = document.getElementById('miniSideDur');
     const auto = document.getElementById('miniSideAuto');
-    if (!state || !state.preview) {
+    if (!hasPlayableTrack(state)) {
       if (title) title.textContent = 'Nothing playing';
       if (artist) artist.textContent = 'Choose a song';
       if (play) play.textContent = '▶';
@@ -115,7 +165,10 @@
     if (artist) artist.textContent = state.artist || 'Internet Archive';
     if (art) art.style.background = state.artwork ? `url(${state.artwork}) center/cover` : 'linear-gradient(135deg, #4c3a7a, #1e3a5f)';
     if (play) play.textContent = state.playing ? '❚❚' : '▶';
-    if (seek) { seek.value = state.duration ? ((state.time || 0) / state.duration) * 100 : 0; seek.disabled = false; }
+    if (seek) {
+      seek.value = state.duration ? ((state.time || 0) / state.duration) * 100 : 0;
+      seek.disabled = !(state.duration > 0);
+    }
     if (cur) cur.textContent = fmt(state.time || 0);
     if (dur) dur.textContent = fmt(state.duration || 0);
     if (auto) auto.textContent = state.autoPlay ? '🔁 Auto Play: On' : '🔁 Auto Play: Off';
@@ -137,14 +190,14 @@
   }
 
   function paintFromState(s) {
-    if (!s || !s.preview) return;
+    if (!hasPlayableTrack(s)) return;
     if (els && els.bar) {
       els.bar.classList.remove('empty');
-      els.title.textContent = s.title;
-      els.artist.textContent = s.artist;
+      els.title.textContent = s.title || 'Now playing';
+      els.artist.textContent = s.artist || 'YouTube';
       if (s.artwork) els.art.style.background = `url(${s.artwork}) center/cover`;
       els.playBtn.disabled = false;
-      els.seek.disabled = false;
+      els.seek.disabled = !(s.duration > 0);
       els.cur.textContent = fmt(s.time || 0);
       els.dur.textContent = fmt(s.duration || 0);
       els.seek.value = s.duration ? ((s.time || 0) / s.duration) * 100 : 0;
@@ -154,25 +207,30 @@
     if (autoPlayButton) autoPlayButton.textContent = s.autoPlay ? '🔁 Auto Play: On' : '🔁 Auto Play: Off';
   }
 
-  function playTrack(track) {
-    if (!els) return;
-    if (inShell && !isMusicOwner) {
-      sendCommand({ type: 'play-track', track });
-      return;
-    }
+  /* ---- Low-level "make this the current track" mechanics ----
+     These never touch history/queue themselves; callers decide whether a
+     track being loaded is a brand-new branch (push to history) or a move
+     through existing history (Previous/Next, no push). */
+  function startArchivePlayback(track) {
+    if (!els || !els.audio) return;
     const previous = getState() || {};
-    const queue = previous.queue || [];
-    const queueIndex = queue.findIndex(item => item.preview === track.preview);
+    if (previous.provider === 'youtube' && window.MiniGPTYouTubePlayer) {
+      window.MiniGPTYouTubePlayer.stopVideo();
+    }
+    if (els.audio.src) els.audio.pause();
     const s = {
       title: track.title,
       artist: track.artist,
       artwork: track.artwork,
       preview: track.preview,
+      provider: 'archive',
       time: 0,
+      duration: 0,
       playing: true,
-      queue,
-      queueIndex: queueIndex < 0 ? 0 : queueIndex,
-      autoPlay: Boolean(previous.autoPlay)
+      autoPlay: Boolean(previous.autoPlay),
+      upNext: previous.upNext || [],
+      history: previous.history || [],
+      historyIndex: Number.isInteger(previous.historyIndex) ? previous.historyIndex : -1
     };
     setState(s);
     paintFromState(s);
@@ -187,31 +245,162 @@
     });
   }
 
-  function setQueue(tracks) {
-    const state = getState() || {};
-    state.queue = tracks;
-    state.queueIndex = tracks.findIndex(item => item.preview === state.preview);
-    if (state.queueIndex < 0) state.queueIndex = 0;
+  function setYouTubeTrack(track) {
+    if (!track || !track.videoId) return;
+    const previous = getState() || {};
+    if (els && els.audio && !els.audio.paused) els.audio.pause();
+    const state = {
+      title: track.title,
+      artist: track.channelTitle || track.artist || 'YouTube',
+      artwork: track.thumbnail || track.artwork || '',
+      preview: '',
+      provider: 'youtube',
+      videoId: track.videoId,
+      time: 0,
+      duration: 0,
+      playing: true,
+      autoPlay: Boolean(previous.autoPlay),
+      upNext: previous.upNext || [],
+      history: previous.history || [],
+      historyIndex: Number.isInteger(previous.historyIndex) ? previous.historyIndex : -1
+    };
     setState(state);
+    paintFromState(state);
+    addActivity('🎵', `Played "${state.title}" on YouTube`);
     notifyParent();
   }
 
-  function playQueued(offset) {
-    if (!isMusicOwner) {
-      sendCommand({ type: offset < 0 ? 'previous' : 'next' });
+  function physicallyPlay(track) {
+    if (track.provider === 'youtube' && track.videoId) {
+      setYouTubeTrack(track);
+      if (window.MiniGPTYouTubePlayer) window.MiniGPTYouTubePlayer.loadVideoById(track.videoId);
+    } else {
+      startArchivePlayback(track);
+    }
+  }
+
+  function updateYouTubePlayback(progress) {
+    const state = getState();
+    if (!state || state.provider !== 'youtube') return;
+    if (Number.isFinite(progress.time)) state.time = progress.time;
+    if (Number.isFinite(progress.duration)) state.duration = progress.duration;
+    if (typeof progress.playing === 'boolean') state.playing = progress.playing;
+    recordCurrentDuration(state);
+    setState(state);
+    paintFromState(state);
+    notifyParent();
+  }
+
+  /* Once a track's real duration is known, stamp it onto its history entry
+     too (history is pushed the instant playback starts, before duration is
+     available) so features like Recently Played can show track length. */
+  function recordCurrentDuration(state) {
+    if (!state.duration) return;
+    const history = state.history || [];
+    const idx = state.historyIndex;
+    const entry = Number.isInteger(idx) ? history[idx] : null;
+    if (entry && !entry.duration) entry.duration = state.duration;
+  }
+
+  /* ---- Playback history: the single source of truth for Previous/Next ----
+     Search results never populate this. Only "genuinely new" plays do:
+     a search-result click, a queued song being played, or an autoplay
+     recommendation. Moving through EXISTING history (Previous, or Next
+     when there's a forward branch) only moves historyIndex; it never
+     rewrites the array or creates duplicate entries. */
+  const MAX_HISTORY = 50;
+  function pushHistory(track) {
+    const state = getState() || {};
+    const entry = normalizeQueueTrack(track);
+    entry.normTitle = normalizeTitle(entry.title);
+    let history = state.history || [];
+    let idx = Number.isInteger(state.historyIndex) ? state.historyIndex : -1;
+    // Branching to a new song drops any stale "forward" history from an
+    // earlier Previous press, same as a browser history stack.
+    history = history.slice(0, idx + 1);
+    history.push(entry);
+    idx = history.length - 1;
+    if (history.length > MAX_HISTORY) {
+      const drop = history.length - MAX_HISTORY;
+      history = history.slice(drop);
+      idx -= drop;
+    }
+    state.history = history;
+    state.historyIndex = idx;
+    setState(state);
+  }
+
+  /* "Play this as a brand-new song": physically plays it AND records it in
+     history. Used for search-result clicks, queue items, and recommendations —
+     never for Previous/Next navigation through existing history. */
+  function playNewTrack(track) {
+    physicallyPlay(track);
+    pushHistory(track);
+    emitQueueChanged();
+  }
+
+  /* ---- Public: play a track chosen directly from search results ---- */
+  function playTrack(track) {
+    if (!isMusicOwner) { sendCommand({ type: 'play-track', track }); return; }
+    playNewTrack(track);
+  }
+  function playYouTubeTrack(track) {
+    if (!isMusicOwner) { sendCommand({ type: 'youtube-track', track }); return; }
+    playNewTrack({ ...track, provider: 'youtube' });
+  }
+
+  /* ---- Public: Previous / Next, both backed by the same history stack ---- */
+  function previousTrack() {
+    if (!isMusicOwner) { sendCommand({ type: 'previous' }); return; }
+    const state = getState() || {};
+    const history = state.history || [];
+    const idx = Number.isInteger(state.historyIndex) ? state.historyIndex : -1;
+    if (idx <= 0 || idx - 1 >= history.length) return;
+    const track = history[idx - 1];
+    const s = getState() || {};
+    s.historyIndex = idx - 1;
+    setState(s);
+    physicallyPlay(track);
+    emitQueueChanged();
+  }
+
+  /* Central playback controller used by BOTH the manual Next button and a
+     song ending naturally (see handleCommand's 'next' and the 'ended'
+     listeners below) — there is only one decision path, per:
+       1. resume forward history (e.g. right after pressing Previous)
+       2. otherwise, play whatever is at the front of the manual queue
+       3. otherwise, if Autoplay is on, ask for a recommendation
+       4. otherwise, stop */
+  async function advance() {
+    const state = getState() || {};
+    const history = state.history || [];
+    const idx = Number.isInteger(state.historyIndex) ? state.historyIndex : -1;
+    if (idx < history.length - 1) {
+      const track = history[idx + 1];
+      const s = getState() || {};
+      s.historyIndex = idx + 1;
+      setState(s);
+      physicallyPlay(track);
+      emitQueueChanged();
       return;
     }
-    const state = getState() || {};
-    const queue = state.queue || [];
-    if (!queue.length) return;
-    const currentIndex = Number.isInteger(state.queueIndex) && state.queueIndex >= 0
-      ? state.queueIndex
-      : Math.max(0, queue.findIndex(item => item.preview === state.preview));
-    const nextIndex = (currentIndex + offset + queue.length) % queue.length;
-    const nextTrack = queue[nextIndex];
-    state.queueIndex = nextIndex;
-    setState(state);
-    playTrack(nextTrack);
+    if (state.upNext && state.upNext.length) {
+      playQueueItem(0);
+      return;
+    }
+    if (state.autoPlay) {
+      await playAutoplayRecommendation();
+      return;
+    }
+    const s2 = getState() || {};
+    s2.playing = false;
+    setState(s2);
+    paintFromState(s2);
+    notifyParent();
+  }
+  function nextTrack() {
+    if (!isMusicOwner) { sendCommand({ type: 'next' }); return; }
+    return advance();
   }
 
   function toggleAutoPlay() {
@@ -223,20 +412,139 @@
     state.autoPlay = !state.autoPlay;
     setState(state);
     notifyParent();
+    emitQueueChanged();
+  }
+
+  /* ---- Manual "Up Next" queue (separate from search results and history) ---- */
+  function getUpNext() {
+    const state = getState() || {};
+    return state.upNext || [];
+  }
+  function addToQueue(track) {
+    const state = getState() || {};
+    state.upNext = state.upNext || [];
+    state.upNext.push(normalizeQueueTrack(track));
+    setState(state);
+    addActivity('➕', `Added "${track.title}" to the queue`);
+    emitQueueChanged();
+  }
+  function playNext(track) {
+    const state = getState() || {};
+    state.upNext = state.upNext || [];
+    state.upNext.unshift(normalizeQueueTrack(track));
+    setState(state);
+    addActivity('⏭', `"${track.title}" will play next`);
+    emitQueueChanged();
+  }
+  function removeFromQueue(index) {
+    const state = getState() || {};
+    if (!state.upNext) return;
+    state.upNext.splice(index, 1);
+    setState(state);
+    emitQueueChanged();
+  }
+  function moveQueueItem(index, direction) {
+    const state = getState() || {};
+    const q = state.upNext || [];
+    const newIndex = index + direction;
+    if (newIndex < 0 || newIndex >= q.length) return;
+    const [item] = q.splice(index, 1);
+    q.splice(newIndex, 0, item);
+    setState(state);
+    emitQueueChanged();
+  }
+  function clearQueue() {
+    const state = getState() || {};
+    state.upNext = [];
+    setState(state);
+    addActivity('🗑', 'Cleared the queue');
+    emitQueueChanged();
+  }
+  /* Playing a queued song removes it from upNext and plays it as a new
+     history branch — the queue always wins over autoplay recommendations. */
+  function playQueueItem(index) {
+    if (!isMusicOwner) return;
+    const state = getState() || {};
+    const q = state.upNext || [];
+    if (index < 0 || index >= q.length) return;
+    const [track] = q.splice(index, 1);
+    setState(state);
+    emitQueueChanged();
+    playNewTrack(track);
+  }
+
+  /* ---- What plays when Autoplay needs to pick something related ----
+     Only meaningful for YouTube-sourced tracks (the backend's /related
+     endpoint). Excludes everything already in this session's playback
+     history so autoplay favors variety over other uploads/versions of the
+     same song. */
+  let recommendationInFlight = false;
+  async function playAutoplayRecommendation() {
+    if (recommendationInFlight) return;
+    const state = getState() || {};
+    if (state.provider !== 'youtube' || !state.videoId) {
+      const s = getState() || {};
+      s.playing = false;
+      setState(s);
+      paintFromState(s);
+      notifyParent();
+      return;
+    }
+    recommendationInFlight = true;
+    document.dispatchEvent(new CustomEvent('mg-recommendation-loading'));
+    try {
+      const recent = (state.history || []).slice(-20);
+      const excludeIds = recent.filter(r => r.provider === 'youtube' && r.videoId).map(r => r.videoId);
+      const excludeTitles = recent.map(r => r.normTitle).filter(Boolean);
+      const params = new URLSearchParams({
+        videoId: state.videoId,
+        title: state.title || '',
+        channelTitle: state.artist || '',
+        excludeIds: excludeIds.join(','),
+        excludeTitles: excludeTitles.join('|')
+      });
+      const response = await fetch(`/api/youtube/related?${params.toString()}`);
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.videos || !data.videos.length) {
+        const s = getState() || {};
+        s.playing = false;
+        setState(s);
+        paintFromState(s);
+        notifyParent();
+        document.dispatchEvent(new CustomEvent('mg-recommendation-empty', { detail: (data && data.error) || null }));
+        return;
+      }
+      const next = { ...data.videos[0], provider: 'youtube' };
+      playNewTrack(next);
+      addActivity('🔁', `Autoplay picked "${next.title}"`);
+    } catch (e) {
+      const s = getState() || {};
+      s.playing = false;
+      setState(s);
+      paintFromState(s);
+      notifyParent();
+      document.dispatchEvent(new CustomEvent('mg-recommendation-empty', { detail: 'Autoplay could not reach the server.' }));
+    } finally {
+      recommendationInFlight = false;
+    }
   }
 
   function handleCommand(command) {
     if (!isMusicOwner || !command) return;
     if (command.type === 'play-track') {
-      playTrack(command.track);
+      playNewTrack(command.track);
+      return;
+    }
+    if (command.type === 'youtube-track') {
+      playNewTrack({ ...command.track, provider: 'youtube' });
       return;
     }
     if (command.type === 'previous') {
-      playQueued(-1);
+      previousTrack();
       return;
     }
     if (command.type === 'next') {
-      playQueued(1);
+      advance();
       return;
     }
     if (command.type === 'auto-play') {
@@ -244,12 +552,22 @@
       return;
     }
     if (command.type === 'seek') {
+      const state = getState();
+      if (state && state.provider === 'youtube' && window.MiniGPTYouTubePlayer) {
+        window.MiniGPTYouTubePlayer.seekTo(command.time);
+        return;
+      }
       if (els.audio.duration) els.audio.currentTime = command.time;
       return;
     }
     if (command.type === 'toggle') {
-      if (!els.audio.src) return;
       const state = getState() || {};
+      if (state.provider === 'youtube' && window.MiniGPTYouTubePlayer) {
+        if (state.playing) window.MiniGPTYouTubePlayer.pauseVideo();
+        else window.MiniGPTYouTubePlayer.playVideo();
+        return;
+      }
+      if (!els.audio.src) return;
       if (els.audio.paused) {
         els.audio.play().then(() => {
           state.playing = true;
@@ -295,7 +613,9 @@
     }
 
     const state = getState();
-    if (isMusicOwner && state && state.preview) {
+    if (isMusicOwner && state && state.provider === 'youtube' && state.videoId) {
+      paintFromState(state);
+    } else if (isMusicOwner && state && state.preview) {
       paintFromState(state);
       els.audio.src = state.preview;
       const resume = () => {
@@ -324,7 +644,7 @@
       };
       if (els.audio.readyState >= 1) resume();
       else els.audio.addEventListener('loadedmetadata', resume, { once: true });
-    } else if (!isMusicOwner && state && state.preview) {
+    } else if (!isMusicOwner && hasPlayableTrack(state)) {
       paintFromState(state);
     }
 
@@ -352,6 +672,11 @@
         if (state && state.duration) sendCommand({ type: 'seek', time: (els.seek.value / 100) * state.duration });
         return;
       }
+      const state = getState();
+      if (state && state.provider === 'youtube' && window.MiniGPTYouTubePlayer && state.duration) {
+        window.MiniGPTYouTubePlayer.seekTo((els.seek.value / 100) * state.duration);
+        return;
+      }
       if (!els.audio.duration) return;
       els.audio.currentTime = (els.seek.value / 100) * els.audio.duration;
     });
@@ -364,28 +689,33 @@
       els.cur.textContent = fmt(els.audio.currentTime);
       els.dur.textContent = fmt(els.audio.duration);
       const s = getState();
-      if (s) { s.time = els.audio.currentTime; s.duration = els.audio.duration; setState(s); notifyParent(); updateSideDock(s); }
+      if (s) { s.time = els.audio.currentTime; s.duration = els.audio.duration; recordCurrentDuration(s); setState(s); notifyParent(); updateSideDock(s); }
     });
 
     els.audio.addEventListener('ended', () => {
       if (!isMusicOwner) return;
-      const state = getState();
-      if (state && state.autoPlay && state.queue && state.queue.length) {
-        playQueued(1);
-      } else {
-        els.playBtn.textContent = '▶';
-        if (state) { state.playing = false; setState(state); notifyParent(); }
-      }
+      // Natural end uses the exact same controller as the manual Next button.
+      advance();
     });
 
     window.addEventListener('beforeunload', () => {
       if (!isMusicOwner) return;
       const s = getState();
-      if (s && els.audio.src) { s.time = els.audio.currentTime; s.playing = !els.audio.paused; setState(s); notifyParent(); }
+      if (s && s.provider !== 'youtube' && els.audio.src) { s.time = els.audio.currentTime; s.playing = !els.audio.paused; setState(s); notifyParent(); }
     });
   }
 
   const sideDockCss = `
+    /* Defensive: some pages define their own broad resets (e.g. a page-wide
+       "button { all: unset }"), which can strip box-sizing from these
+       injected elements since the dock never used to declare it itself.
+       With content-box instead of border-box, a button's declared
+       padding/border gets added on top of "width: 100%" instead of being
+       included in it, pushing it outside the card. Owning box-sizing here
+       makes the dock immune to whatever the host page does. */
+    .mini-right-dock, .mini-right-dock * {
+      box-sizing: border-box;
+    }
     .mini-right-dock {
       position: fixed;
       top: 18px;
@@ -564,12 +894,20 @@
   document.addEventListener('DOMContentLoaded', init);
   window.MiniGPTPlayer = {
     playTrack,
-    setQueue,
-    previous: () => playQueued(-1),
-    next: () => playQueued(1),
+    playYouTubeTrack,
+    previous: previousTrack,
+    next: nextTrack,
     toggleAutoPlay,
     getState,
     setState,
-    addActivity
+    updateYouTubePlayback,
+    addActivity,
+    getUpNext,
+    addToQueue,
+    playNext,
+    removeFromQueue,
+    moveQueueItem,
+    clearQueue,
+    playQueueItem
   };
 })();

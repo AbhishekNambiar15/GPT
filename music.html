@@ -13,7 +13,36 @@
       display: flex;
       flex-direction: column;
       gap: 20px;
-      max-width: 680px;
+      max-width: 1120px;
+    }
+
+    /* Search (left) side-by-side with the Now Playing card + queue (right)
+       on laptop/desktop widths; both stack for narrower screens. */
+    .player-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 380px;
+      gap: 20px;
+      align-items: start;
+    }
+
+    .search-col {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      min-width: 0;
+    }
+
+    .now-playing-col {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      min-width: 0;
+    }
+
+    @media (max-width: 900px) {
+      .player-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
     }
 
     .search-row {
@@ -81,8 +110,8 @@
       gap: 12px;
       padding: 9px 10px;
       border-radius: 10px;
-      cursor: pointer;
       border: 1px solid transparent;
+      flex-wrap: wrap;
     }
 
     .result:hover {
@@ -100,6 +129,13 @@
       border-radius: 8px;
       flex: none;
       background: var(--panel2);
+      cursor: pointer;
+    }
+
+    .result-info {
+      flex: 1;
+      min-width: 120px;
+      cursor: pointer;
     }
 
     .result .t {
@@ -112,6 +148,12 @@
       color: var(--dim);
     }
 
+    .result-actions {
+      display: flex;
+      gap: 6px;
+      flex: none;
+    }
+
     .loading,
     .empty,
     .error {
@@ -122,6 +164,619 @@
 
     .error {
       color: var(--red);
+    }
+
+    .youtube-lookup {
+      border-top: 1px solid var(--line);
+      padding-top: 20px;
+    }
+
+    .youtube-lookup h3 {
+      font-size: 15px;
+      margin-bottom: 10px;
+    }
+
+    .youtube-results {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .youtube-video-result {
+      display: grid;
+      grid-template-columns: minmax(96px, 140px) minmax(0, 1fr);
+      align-items: start;
+      gap: 12px;
+      width: 100%;
+      padding: 8px;
+      color: var(--text);
+      background: var(--panel2);
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      text-align: left;
+    }
+
+    .youtube-video-result:hover {
+      border-color: var(--purple);
+    }
+
+    .yt-thumb-btn {
+      all: unset;
+      display: block;
+      cursor: pointer;
+    }
+
+    .youtube-video-result img {
+      display: block;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      object-fit: cover;
+      border-radius: 6px;
+      background: var(--bg);
+    }
+
+    .yt-info {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    .yt-title-btn {
+      all: unset;
+      cursor: pointer;
+      display: block;
+    }
+
+    .yt-title-btn:hover,
+    .yt-title-btn:focus-visible {
+      color: var(--purple);
+    }
+
+    .youtube-video-title {
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.4;
+      overflow-wrap: anywhere;
+    }
+
+    .youtube-video-channel {
+      margin-top: 4px;
+      color: var(--dim);
+      font-size: 11.5px;
+    }
+
+    .yt-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+
+    .yt-action {
+      all: unset;
+      background: var(--bg);
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 5px 9px;
+      font-size: 11px;
+      color: var(--dim);
+      cursor: pointer;
+    }
+
+    .yt-action:hover {
+      color: var(--text);
+      border-color: var(--purple);
+    }
+
+    .youtube-player-wrap {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #000;
+    }
+
+    /* ---- Now Playing card (top-right, always visible) ---- */
+    .now-playing-card {
+      background: var(--panel2);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 14px;
+    }
+
+    .npc-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .npc-badge {
+      flex: none;
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      background: var(--red);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+    }
+
+    .npc-head-text {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .npc-head-text h3 {
+      font-size: 13.5px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .npc-head-text p {
+      font-size: 11.5px;
+      color: var(--dim);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-top: 1px;
+    }
+
+    .npc-media {
+      position: relative;
+      margin-top: 4px;
+    }
+
+    /* [hidden] has the same specificity as the .npc-empty/.npc-archive
+       "display: flex" rules below, and author CSS beats the browser's
+       built-in [hidden] rule at equal specificity — so without this,
+       setting .hidden = true in JS did nothing and more than one of
+       video / archive-art / empty-state could render at once. This makes
+       hidden always win, so exactly one is ever shown. */
+    .npc-media [hidden] {
+      display: none !important;
+    }
+
+    .npc-empty {
+      aspect-ratio: 16 / 9;
+      border-radius: 10px;
+      background: var(--bg);
+      border: 1px dashed var(--line);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      gap: 8px;
+      padding: 16px;
+    }
+
+    .npc-empty span {
+      font-size: 26px;
+    }
+
+    .npc-empty p {
+      font-size: 12px;
+      color: var(--dim);
+      line-height: 1.5;
+    }
+
+    .npc-archive {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 2px;
+    }
+
+    .npc-art {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #4c3a7a, #1e3a5f);
+      background-size: cover;
+      background-position: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .npc-art-play {
+      all: unset;
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      background: rgba(10, 13, 22, 0.65);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      cursor: pointer;
+      backdrop-filter: blur(3px);
+    }
+
+    .npc-art-play:hover {
+      background: var(--purple);
+    }
+
+    .npc-info .t {
+      font-size: 13px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .npc-info .s {
+      font-size: 11.5px;
+      color: var(--dim);
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .npc-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .npc-bar button {
+      all: unset;
+      flex: none;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: var(--purple);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .npc-bar button:hover {
+      background: #7274f0;
+    }
+
+    .npc-time {
+      font-size: 10.5px;
+      color: var(--dim);
+      flex: none;
+      min-width: 30px;
+    }
+
+    .npc-seek {
+      flex: 1;
+      -webkit-appearance: none;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--line);
+      outline: none;
+    }
+
+    .npc-seek::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      background: var(--purple);
+      cursor: pointer;
+    }
+
+    /* ---- Recently Played ---- */
+    .recent-history {
+      background: var(--panel2);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 20px;
+    }
+
+    .recent-history-head {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .recent-history-head .rh-ic {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      flex: none;
+    }
+
+    .recent-history-head h3 {
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .recent-history-head p {
+      font-size: 11.5px;
+      color: var(--dim);
+      margin-top: 1px;
+    }
+
+    .recent-history-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+      gap: 14px;
+      margin-top: 16px;
+    }
+
+    .rh-card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .rh-card:hover {
+      border-color: var(--purple);
+    }
+
+    .rh-thumb {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      border-radius: 9px;
+      background: linear-gradient(135deg, #4c3a7a, #1e3a5f);
+      background-size: cover;
+      background-position: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 10px;
+    }
+
+    .rh-thumb .play {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: rgba(10, 13, 22, 0.6);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      backdrop-filter: blur(2px);
+    }
+
+    .rh-title {
+      font-size: 13px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .rh-tags {
+      display: flex;
+      gap: 6px;
+      margin-top: 7px;
+      flex-wrap: wrap;
+    }
+
+    .rh-tag {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: var(--purple-dim);
+      color: #c7d2fe;
+    }
+
+    .rh-tag.archive {
+      background: #164e3f;
+      color: #6ee7b7;
+    }
+
+    .rh-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 8px;
+    }
+
+    .rh-time {
+      font-size: 11px;
+      color: var(--dim2);
+    }
+
+    .rh-empty {
+      font-size: 12.5px;
+      color: var(--dim2);
+      margin-top: 16px;
+    }
+
+    .youtube-player-wrap iframe {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border: 0;
+    }
+
+    .youtube-player-wrap #youtubePlayer {
+      width: 100%;
+      height: 100%;
+    }
+
+    .youtube-playback-status {
+      margin-top: 12px;
+      color: var(--dim);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .youtube-watch-link {
+      display: inline-block;
+      margin-top: 8px;
+      color: var(--text);
+      background: var(--panel2);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 12px;
+      text-decoration: none;
+    }
+
+    .youtube-watch-link[hidden] {
+      display: none;
+    }
+
+    .youtube-watch-link:hover {
+      border-color: var(--purple);
+    }
+
+    .queue-panel {
+      background: var(--panel2);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 18px;
+    }
+
+    @media (max-width: 900px) {
+      .queue-panel {
+        border-top: 1px solid var(--line);
+        border-radius: 0;
+        padding: 20px 0 0;
+        background: transparent;
+        border-left: 0;
+        border-right: 0;
+        border-bottom: 0;
+      }
+    }
+
+    .queue-panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 4px;
+    }
+
+    .queue-panel-head h3 {
+      font-size: 15px;
+    }
+
+    .queue-panel-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .queue-panel-actions button {
+      all: unset;
+      background: var(--panel2);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 7px 12px;
+      font-size: 11.5px;
+      color: var(--dim);
+      cursor: pointer;
+    }
+
+    .queue-panel-actions button:hover {
+      color: var(--text);
+      border-color: var(--purple);
+    }
+
+    .queue-panel-actions button.on {
+      background: var(--purple);
+      color: #fff;
+      border-color: var(--purple);
+    }
+
+    .queue-status {
+      font-size: 12px;
+      color: var(--dim2);
+      margin-top: 10px;
+    }
+
+    .queue-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 12px;
+      max-height: 480px;
+      overflow-y: auto;
+      padding-right: 2px;
+    }
+
+    .queue-item {
+      display: grid;
+      grid-template-columns: 44px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+      background: var(--panel2);
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      padding: 7px 9px;
+    }
+
+    .queue-item img {
+      width: 44px;
+      height: 44px;
+      border-radius: 7px;
+      object-fit: cover;
+      background: var(--bg);
+    }
+
+    .queue-item-info {
+      min-width: 0;
+    }
+
+    .queue-item-title {
+      font-size: 12.5px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .queue-item-artist {
+      font-size: 11px;
+      color: var(--dim);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .queue-item-actions {
+      display: flex;
+      gap: 4px;
+    }
+
+    .queue-item-actions button {
+      all: unset;
+      width: 26px;
+      height: 26px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 7px;
+      color: var(--dim2);
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .queue-item-actions button:hover {
+      color: var(--text);
+      background: var(--bg);
     }
 
     .lyrics-lookup {
@@ -230,6 +885,8 @@
         <p>Search for a song — it keeps playing as you browse other pages.</p>
       </div>
       <div id="content">
+        <div class="player-grid">
+        <div class="search-col">
         <div>
           <div class="search-row">
             <input id="searchInput" placeholder="Search for a song or artist…">
@@ -246,6 +903,68 @@
           </div>
           <div class="hint" style="margin-top:8px;">Streams full royalty-free tracks from Internet Archive.</div>
           <div class="results" id="results"></div>
+        </div>
+        <section class="youtube-lookup" aria-labelledby="youtubeHeading">
+          <h3 id="youtubeHeading">YouTube</h3>
+          <div class="search-row">
+            <input id="youtubeSearchInput" placeholder="Search YouTube for a song or artist…">
+            <button id="youtubeSearchButton" type="button">Search videos</button>
+          </div>
+          <p class="hint" style="margin-top:8px;">Videos play using YouTube's embedded player.</p>
+          <div class="loading" id="youtubeStatus" aria-live="polite" hidden></div>
+          <div class="youtube-results" id="youtubeResults"></div>
+        </section>
+        </div>
+        <div class="now-playing-col">
+        <section class="now-playing-card" aria-labelledby="nowPlayingHeading">
+          <div class="npc-head">
+            <span class="npc-badge">▶</span>
+            <div class="npc-head-text">
+              <h3 id="nowPlayingHeading">Now Playing</h3>
+              <p id="npcSubtitle">Nothing playing yet</p>
+            </div>
+          </div>
+          <div class="npc-media">
+            <div class="youtube-player-wrap" id="youtubePlayerWrap" hidden>
+              <div id="youtubePlayer"></div>
+            </div>
+            <div class="npc-archive" id="npcArchive" hidden>
+              <div class="npc-art" id="npcArt">
+                <button type="button" class="npc-art-play" id="npcArtPlay" aria-label="Play or pause">▶</button>
+              </div>
+              <div class="npc-info">
+                <div class="t" id="npcTitle"></div>
+                <div class="s" id="npcArtist"></div>
+              </div>
+              <div class="npc-bar">
+                <button type="button" id="npcBarPlay" aria-label="Play or pause">▶</button>
+                <span class="npc-time" id="npcCur">0:00</span>
+                <input type="range" class="npc-seek" id="npcSeek" min="0" max="100" value="0">
+                <span class="npc-time" id="npcDur">0:00</span>
+              </div>
+            </div>
+            <div class="npc-empty" id="npcEmpty">
+              <span>🎧</span>
+              <p>Search a song or pick a YouTube video to start listening</p>
+            </div>
+          </div>
+          <p class="youtube-playback-status" id="youtubePlaybackStatus" role="status" aria-live="polite" hidden></p>
+          <a class="youtube-watch-link" id="youtubeWatchLink" target="_blank" rel="noopener noreferrer" hidden>Watch on
+            YouTube</a>
+        </section>
+        <section class="queue-panel" aria-labelledby="queueHeading">
+          <div class="queue-panel-head">
+            <h3 id="queueHeading">Up Next</h3>
+            <div class="queue-panel-actions">
+              <button type="button" id="autoPlayToggleBtn">🔁 Autoplay: Off</button>
+              <button type="button" id="clearQueueBtn">Clear</button>
+            </div>
+          </div>
+          <p class="hint">Songs you add here always play before autoplay picks something related.</p>
+          <p class="queue-status" id="queueStatus" hidden></p>
+          <div class="queue-list" id="queueList"></div>
+        </section>
+        </div>
         </div>
         <section class="lyrics-lookup" aria-labelledby="lyricsHeading">
           <h3 id="lyricsHeading">Lyrics search</h3>
@@ -267,6 +986,17 @@
               <div class="lyrics-fallback-links" id="lyricsResults"></div>
             </div>
           </div>
+        </section>
+        <section class="recent-history" aria-labelledby="recentHistoryHeading">
+          <div class="recent-history-head">
+            <span class="rh-ic">🕒</span>
+            <div>
+              <h3 id="recentHistoryHeading">Recent History</h3>
+              <p>Your recently played songs</p>
+            </div>
+          </div>
+          <div class="recent-history-grid" id="recentHistoryGrid"></div>
+          <p class="rh-empty" id="recentHistoryEmpty">Nothing played yet — search a song above to get started.</p>
         </section>
       </div>
     </div>
@@ -333,18 +1063,32 @@
           return;
         }
 
-        const queue = items.slice(0, 12);
-        window.MiniGPTPlayer.setQueue(queue);
-        results.innerHTML = queue.map((r, i) => `
+        // These are just search results for the user to browse — they are
+        // never written into the global playback queue/history themselves.
+        const searchResults = items.slice(0, 12);
+        results.innerHTML = searchResults.map((r, i) => `
       <div class="result" data-i="${i}">
         <img src="${r.artwork}" alt="">
-        <div><div class="t">${r.title}</div><div class="s">${r.artist}</div></div>
+        <div class="result-info"><div class="t">${r.title}</div><div class="s">${r.artist}</div></div>
+        <div class="result-actions">
+          <button type="button" class="yt-action" data-act="queue" title="Add to queue">+ Queue</button>
+          <button type="button" class="yt-action" data-act="next" title="Play next">Play Next</button>
+        </div>
       </div>`).join('');
         document.querySelectorAll('.result').forEach(el => {
-          el.onclick = () => {
+          const track = searchResults[parseInt(el.dataset.i)];
+          el.querySelector('img').onclick = el.querySelector('.t').onclick = () => {
             document.querySelectorAll('.result').forEach(x => x.classList.remove('active'));
             el.classList.add('active');
-            window.MiniGPTPlayer.playTrack(queue[parseInt(el.dataset.i)]);
+            window.MiniGPTPlayer.playTrack(track);
+          };
+          el.querySelector('[data-act="queue"]').onclick = () => {
+            window.MiniGPTPlayer.addToQueue(track);
+            renderQueuePanel();
+          };
+          el.querySelector('[data-act="next"]').onclick = () => {
+            window.MiniGPTPlayer.playNext(track);
+            renderQueuePanel();
           };
         });
       } catch (e) {
@@ -353,6 +1097,456 @@
     }
     document.getElementById('searchBtn').onclick = () => runSearch(document.getElementById('searchInput').value.trim());
     document.getElementById('searchInput').addEventListener('keydown', e => { if (e.key === 'Enter') runSearch(e.target.value.trim()); });
+
+    let youtubeApiPromise = null;
+    let youtubePlayerInstance = null;
+    let selectedYoutubeVideoId = '';
+    let youtubeProgressTimer = null;
+
+    function clearYoutubeProgressTimer() {
+      if (youtubeProgressTimer) clearInterval(youtubeProgressTimer);
+      youtubeProgressTimer = null;
+    }
+
+    function syncYoutubeProgress(playing) {
+      if (!youtubePlayerInstance || !window.MiniGPTPlayer) return;
+      window.MiniGPTPlayer.updateYouTubePlayback({
+        time: youtubePlayerInstance.getCurrentTime(),
+        duration: youtubePlayerInstance.getDuration(),
+        playing
+      });
+    }
+
+    function handleYoutubeStateChange(event) {
+      const YT = window.YT;
+      if (!YT || !window.MiniGPTPlayer) return;
+      if (event.data === YT.PlayerState.PLAYING) {
+        clearYoutubeProgressTimer();
+        syncYoutubeProgress(true);
+        youtubeProgressTimer = setInterval(() => {
+          if (youtubePlayerInstance && youtubePlayerInstance.getPlayerState() === YT.PlayerState.PLAYING) {
+            syncYoutubeProgress(true);
+          }
+        }, 1000);
+        return;
+      }
+      if (event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.ENDED) {
+        clearYoutubeProgressTimer();
+        if (event.data === YT.PlayerState.ENDED) {
+          // Natural end and the manual Next button share one controller:
+          // resume forward history, then the manual queue, then an autoplay
+          // recommendation, then stop. Never cycle back through the
+          // original search results.
+          window.MiniGPTPlayer.next();
+          return;
+        }
+        syncYoutubeProgress(false);
+      }
+    }
+
+    window.MiniGPTYouTubePlayer = {
+      loadVideoById(videoId) {
+        if (youtubePlayerInstance) youtubePlayerInstance.loadVideoById(videoId);
+      },
+      playVideo() {
+        if (youtubePlayerInstance) youtubePlayerInstance.playVideo();
+      },
+      pauseVideo() {
+        if (youtubePlayerInstance) youtubePlayerInstance.pauseVideo();
+      },
+      stopVideo() {
+        clearYoutubeProgressTimer();
+        if (youtubePlayerInstance) youtubePlayerInstance.stopVideo();
+      },
+      seekTo(seconds) {
+        if (youtubePlayerInstance) youtubePlayerInstance.seekTo(seconds, true);
+      }
+    };
+
+    function loadYouTubeIframeApi() {
+      if (window.YT?.Player) return Promise.resolve(window.YT);
+      if (youtubeApiPromise) return youtubeApiPromise;
+      youtubeApiPromise = new Promise((resolve, reject) => {
+        const previousCallback = window.onYouTubeIframeAPIReady;
+        window.onYouTubeIframeAPIReady = () => {
+          if (typeof previousCallback === 'function') previousCallback();
+          resolve(window.YT);
+        };
+        const script = document.createElement('script');
+        script.src = 'https://www.youtube.com/iframe_api';
+        script.onerror = () => reject(new Error('YouTube player could not be loaded.'));
+        document.head.appendChild(script);
+      });
+      return youtubeApiPromise;
+    }
+
+    function showYoutubePlaybackError(errorCode) {
+      const messages = {
+        2: 'YouTube rejected this video ID.',
+        5: 'This video cannot be played in the embedded player.',
+        100: 'This video was removed or made private.',
+        101: 'The video owner does not allow embedded playback.',
+        150: 'The video owner does not allow embedded playback.',
+        153: 'YouTube could not verify the player request.'
+      };
+      const status = document.getElementById('youtubePlaybackStatus');
+      status.textContent = `${messages[errorCode] || 'This video cannot be played here.'} Open it directly on YouTube instead.`;
+      status.hidden = false;
+      document.getElementById('youtubePlayerWrap').hidden = true;
+      document.getElementById('youtubeWatchLink').hidden = false;
+      if (window.MiniGPTPlayer) window.MiniGPTPlayer.updateYouTubePlayback({ playing: false });
+    }
+
+    async function playYoutubeVideo(video) {
+      if (!/^[A-Za-z0-9_-]{11}$/.test(video.videoId)) return;
+      selectedYoutubeVideoId = video.videoId;
+      const playerWrap = document.getElementById('youtubePlayerWrap');
+      const status = document.getElementById('youtubePlaybackStatus');
+      const watchLink = document.getElementById('youtubeWatchLink');
+      status.hidden = true;
+      status.textContent = '';
+      watchLink.href = `https://www.youtube.com/watch?v=${encodeURIComponent(video.videoId)}`;
+      watchLink.hidden = false;
+      playerWrap.hidden = false;
+      document.getElementById('npcArchive').hidden = true;
+      document.getElementById('npcEmpty').hidden = true;
+      document.getElementById('npcSubtitle').textContent = video.channelTitle || 'YouTube';
+      const queueStatus = document.getElementById('queueStatus');
+      if (queueStatus) queueStatus.hidden = true;
+      window.MiniGPTPlayer.playYouTubeTrack(video);
+      try {
+        const YT = await loadYouTubeIframeApi();
+        if (selectedYoutubeVideoId !== video.videoId) return;
+        if (youtubePlayerInstance) {
+          youtubePlayerInstance.loadVideoById(video.videoId);
+          return;
+        }
+        youtubePlayerInstance = new YT.Player('youtubePlayer', {
+          width: '100%',
+          height: '100%',
+          videoId: video.videoId,
+          playerVars: {
+            autoplay: 1,
+            rel: 0,
+            origin: window.location.origin
+          },
+          events: {
+            onReady: event => {
+              if (selectedYoutubeVideoId === video.videoId) {
+                window.MiniGPTPlayer.updateYouTubePlayback({
+                  time: event.target.getCurrentTime(),
+                  duration: event.target.getDuration(),
+                  playing: event.target.getPlayerState() === YT.PlayerState.PLAYING
+                });
+              }
+            },
+            onStateChange: handleYoutubeStateChange,
+            onError: event => showYoutubePlaybackError(event.data)
+          }
+        });
+      } catch (error) {
+        status.textContent = `${error.message} You can open the video directly on YouTube.`;
+        status.hidden = false;
+        playerWrap.hidden = true;
+        watchLink.hidden = false;
+        window.MiniGPTPlayer.updateYouTubePlayback({ playing: false });
+      }
+    }
+
+    async function searchYouTube(term) {
+      const status = document.getElementById('youtubeStatus');
+      const results = document.getElementById('youtubeResults');
+      const button = document.getElementById('youtubeSearchButton');
+      results.replaceChildren();
+      // Note: searching must never touch the Now Playing video — it used to
+      // stop/hide the player here, which cut off whatever was playing every
+      // time someone looked up the next song. Playback is only ever
+      // started/stopped/switched from playYoutubeVideo() below.
+      if (!term) {
+        status.textContent = 'Enter a song or artist to search YouTube.';
+        status.hidden = false;
+        return;
+      }
+
+      status.textContent = 'Searching YouTube…';
+      status.hidden = false;
+      button.disabled = true;
+      try {
+        const response = await fetch(`/api/youtube/search?q=${encodeURIComponent(term)}`);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || `YouTube search returned HTTP ${response.status}.`);
+        const videos = data.videos || [];
+        if (!videos.length) {
+          status.textContent = 'No embeddable videos were found. Try another search.';
+          return;
+        }
+
+        status.hidden = true;
+        videos.forEach(video => {
+          const result = document.createElement('div');
+          result.className = 'youtube-video-result';
+
+          const thumbBtn = document.createElement('button');
+          thumbBtn.type = 'button';
+          thumbBtn.className = 'yt-thumb-btn';
+          thumbBtn.setAttribute('aria-label', `Play ${video.title}`);
+          const thumbnail = document.createElement('img');
+          thumbnail.src = video.thumbnail;
+          thumbnail.alt = '';
+          thumbnail.loading = 'lazy';
+          thumbBtn.appendChild(thumbnail);
+          thumbBtn.onclick = () => playYoutubeVideo(video);
+
+          const info = document.createElement('div');
+          info.className = 'yt-info';
+          const title = document.createElement('button');
+          title.type = 'button';
+          title.className = 'youtube-video-title yt-title-btn';
+          title.textContent = video.title;
+          title.onclick = () => playYoutubeVideo(video);
+          const channel = document.createElement('span');
+          channel.className = 'youtube-video-channel';
+          channel.textContent = video.channelTitle;
+          const actions = document.createElement('div');
+          actions.className = 'yt-actions';
+          const queueBtn = document.createElement('button');
+          queueBtn.type = 'button';
+          queueBtn.className = 'yt-action';
+          queueBtn.textContent = '+ Queue';
+          queueBtn.onclick = () => {
+            window.MiniGPTPlayer.addToQueue({ ...video, provider: 'youtube' });
+            renderQueuePanel();
+          };
+          const nextBtn = document.createElement('button');
+          nextBtn.type = 'button';
+          nextBtn.className = 'yt-action';
+          nextBtn.textContent = 'Play Next';
+          nextBtn.onclick = () => {
+            window.MiniGPTPlayer.playNext({ ...video, provider: 'youtube' });
+            renderQueuePanel();
+          };
+          actions.append(queueBtn, nextBtn);
+          info.append(title, channel, actions);
+
+          result.append(thumbBtn, info);
+          results.appendChild(result);
+        });
+      } catch (error) {
+        status.textContent = error.message || 'YouTube search failed. Try again.';
+      } finally {
+        button.disabled = false;
+      }
+    }
+    document.getElementById('youtubeSearchButton').onclick = () => searchYouTube(document.getElementById('youtubeSearchInput').value.trim());
+    document.getElementById('youtubeSearchInput').addEventListener('keydown', e => {
+      if (e.key === 'Enter') searchYouTube(e.target.value.trim());
+    });
+
+    function fmtQueueArtwork(item) {
+      return item.artwork || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="44"%3E%3Crect width="44" height="44" fill="%23161b28"/%3E%3C/svg%3E';
+    }
+
+    function renderQueuePanel() {
+      const state = (window.MiniGPTPlayer && window.MiniGPTPlayer.getState()) || {};
+      const queue = state.upNext || [];
+      const autoBtn = document.getElementById('autoPlayToggleBtn');
+      if (autoBtn) {
+        autoBtn.textContent = state.autoPlay ? '🔁 Autoplay: On' : '🔁 Autoplay: Off';
+        autoBtn.classList.toggle('on', Boolean(state.autoPlay));
+      }
+      const list = document.getElementById('queueList');
+      if (!list) return;
+      if (!queue.length) {
+        list.innerHTML = `<div class="empty">Nothing queued yet. Use "+ Queue" or "Play Next" on a search result to add a song here.</div>`;
+        return;
+      }
+      list.innerHTML = queue.map((item, i) => `
+    <div class="queue-item" data-i="${i}">
+      <img src="${fmtQueueArtwork(item)}" alt="">
+      <div class="queue-item-info">
+        <div class="queue-item-title">${item.title}</div>
+        <div class="queue-item-artist">${item.artist}</div>
+      </div>
+      <div class="queue-item-actions">
+        <button type="button" data-act="up" title="Move up" ${i === 0 ? 'disabled' : ''}>↑</button>
+        <button type="button" data-act="down" title="Move down" ${i === queue.length - 1 ? 'disabled' : ''}>↓</button>
+        <button type="button" data-act="play" title="Play now">▶</button>
+        <button type="button" data-act="remove" title="Remove">✕</button>
+      </div>
+    </div>`).join('');
+      list.querySelectorAll('button[data-act]').forEach(btn => {
+        const row = btn.closest('.queue-item');
+        const i = parseInt(row.dataset.i);
+        btn.onclick = () => {
+          const act = btn.dataset.act;
+          if (act === 'up') window.MiniGPTPlayer.moveQueueItem(i, -1);
+          else if (act === 'down') window.MiniGPTPlayer.moveQueueItem(i, 1);
+          else if (act === 'remove') window.MiniGPTPlayer.removeFromQueue(i);
+          else if (act === 'play') window.MiniGPTPlayer.playQueueItem(i);
+          renderQueuePanel();
+        };
+      });
+    }
+
+    document.getElementById('autoPlayToggleBtn').onclick = () => {
+      window.MiniGPTPlayer.toggleAutoPlay();
+      renderQueuePanel();
+    };
+    document.getElementById('clearQueueBtn').onclick = () => {
+      window.MiniGPTPlayer.clearQueue();
+      renderQueuePanel();
+    };
+    document.addEventListener('mg-queue-updated', renderQueuePanel);
+    document.addEventListener('mg-recommendation-loading', () => {
+      const status = document.getElementById('queueStatus');
+      status.textContent = 'Autoplay is finding something related…';
+      status.hidden = false;
+    });
+    document.addEventListener('mg-recommendation-empty', (e) => {
+      const status = document.getElementById('queueStatus');
+      status.textContent = e.detail || "Autoplay couldn't find more related music right now.";
+      status.hidden = false;
+    });
+    document.addEventListener('mg-queue-updated', () => {
+      const state = (window.MiniGPTPlayer && window.MiniGPTPlayer.getState()) || {};
+      if (state.playing) document.getElementById('queueStatus').hidden = true;
+    });
+    renderQueuePanel();
+
+    /* ---- Now Playing card: mirrors the shared player state. The YouTube
+       case just shows/relies on the existing embedded iframe (native
+       controls); the Internet Archive case gets its own light-weight
+       play/seek UI here since <audio> has no built-in visible controls. */
+    function fmtTime(t) {
+      if (!isFinite(t) || t < 0) return '0:00';
+      const m = Math.floor(t / 60), s = Math.floor(t % 60).toString().padStart(2, '0');
+      return `${m}:${s}`;
+    }
+
+    function toggleArchivePlayback() {
+      const audio = document.getElementById('miniAudio');
+      if (!audio || !audio.src) return;
+      if (audio.paused) {
+        audio.play().then(() => {
+          const s = window.MiniGPTPlayer.getState() || {};
+          s.playing = true;
+          window.MiniGPTPlayer.setState(s);
+          renderNowPlaying();
+        }).catch(() => { });
+      } else {
+        audio.pause();
+        const s = window.MiniGPTPlayer.getState() || {};
+        s.playing = false;
+        window.MiniGPTPlayer.setState(s);
+        renderNowPlaying();
+      }
+    }
+    document.getElementById('npcArtPlay').onclick = toggleArchivePlayback;
+    document.getElementById('npcBarPlay').onclick = toggleArchivePlayback;
+    document.getElementById('npcSeek').addEventListener('input', (e) => {
+      const audio = document.getElementById('miniAudio');
+      if (!audio || !audio.duration) return;
+      audio.currentTime = (e.target.value / 100) * audio.duration;
+    });
+
+    function renderNowPlaying() {
+      const state = (window.MiniGPTPlayer && window.MiniGPTPlayer.getState()) || {};
+      const empty = document.getElementById('npcEmpty');
+      const archive = document.getElementById('npcArchive');
+      const playerWrap = document.getElementById('youtubePlayerWrap');
+      const subtitle = document.getElementById('npcSubtitle');
+      const hasTrack = Boolean(state.provider === 'youtube' ? state.videoId : state.preview);
+      if (!hasTrack) {
+        empty.hidden = false;
+        archive.hidden = true;
+        playerWrap.hidden = true;
+        subtitle.textContent = 'Nothing playing yet';
+        return;
+      }
+      empty.hidden = true;
+      if (state.provider === 'youtube') {
+        archive.hidden = true;
+        playerWrap.hidden = false;
+        subtitle.textContent = state.artist || 'YouTube';
+        return;
+      }
+      // Archive track: playerWrap stays hidden (handled by playYoutubeVideo
+      // whenever a video starts); render our own art/progress UI instead.
+      playerWrap.hidden = true;
+      archive.hidden = false;
+      subtitle.textContent = state.artist || 'Internet Archive';
+      document.getElementById('npcTitle').textContent = state.title || '';
+      document.getElementById('npcArtist').textContent = state.artist || 'Internet Archive';
+      const art = document.getElementById('npcArt');
+      art.style.background = state.artwork
+        ? `url(${state.artwork}) center/cover`
+        : 'linear-gradient(135deg, #4c3a7a, #1e3a5f)';
+      const playing = Boolean(state.playing);
+      document.getElementById('npcArtPlay').textContent = playing ? '❚❚' : '▶';
+      document.getElementById('npcBarPlay').textContent = playing ? '❚❚' : '▶';
+      const seek = document.getElementById('npcSeek');
+      seek.value = state.duration ? ((state.time || 0) / state.duration) * 100 : 0;
+      document.getElementById('npcCur').textContent = fmtTime(state.time || 0);
+      document.getElementById('npcDur').textContent = fmtTime(state.duration || 0);
+    }
+    document.addEventListener('mg-queue-updated', renderNowPlaying);
+    document.getElementById('miniAudio').addEventListener('timeupdate', renderNowPlaying);
+    document.getElementById('miniAudio').addEventListener('play', renderNowPlaying);
+    document.getElementById('miniAudio').addEventListener('pause', renderNowPlaying);
+    renderNowPlaying();
+
+    /* ---- Recently Played: built from the shared playback history so it
+       reflects everything actually played (Internet Archive + YouTube),
+       deduped by normalized title so re-plays of the same song only
+       appear once, most recent first. ---- */
+    function rhArtwork(item) {
+      return item.artwork
+        ? `background-image:url('${item.artwork}');`
+        : '';
+    }
+    function renderRecentHistory() {
+      const state = (window.MiniGPTPlayer && window.MiniGPTPlayer.getState()) || {};
+      const history = state.history || [];
+      const grid = document.getElementById('recentHistoryGrid');
+      const emptyMsg = document.getElementById('recentHistoryEmpty');
+      const seenTitles = new Set();
+      const items = [];
+      for (let i = history.length - 1; i >= 0 && items.length < 8; i--) {
+        const item = history[i];
+        const key = item.normTitle || item.title;
+        if (key && seenTitles.has(key)) continue;
+        if (key) seenTitles.add(key);
+        items.push(item);
+      }
+      if (!items.length) {
+        grid.innerHTML = '';
+        emptyMsg.hidden = false;
+        return;
+      }
+      emptyMsg.hidden = true;
+      grid.innerHTML = items.map((item, i) => `
+    <button type="button" class="rh-card" data-i="${i}">
+      <div class="rh-thumb" style="${rhArtwork(item)}"><span class="play">▶</span></div>
+      <div class="rh-title">${item.title}</div>
+      <div class="rh-tags">
+        <span class="rh-tag ${item.provider === 'archive' ? 'archive' : ''}">${item.provider === 'youtube' ? 'YouTube' : 'Archive'}</span>
+      </div>
+      <div class="rh-meta">
+        <span class="rh-time">${item.artist || ''}</span>
+        <span class="rh-time">${item.duration ? fmtTime(item.duration) : ''}</span>
+      </div>
+    </button>`).join('');
+      grid.querySelectorAll('.rh-card').forEach(card => {
+        const item = items[parseInt(card.dataset.i)];
+        card.onclick = () => {
+          if (item.provider === 'youtube') window.MiniGPTPlayer.playYouTubeTrack(item);
+          else window.MiniGPTPlayer.playTrack(item);
+        };
+      });
+    }
+    document.addEventListener('mg-queue-updated', renderRecentHistory);
+    renderRecentHistory();
+
     let lyricsRequestId = 0;
     let lastLyricsRequestAt = 0;
     function showLyricsFallback(term, message) {
@@ -451,6 +1645,46 @@
       document.getElementById('searchInput').value = params.get('q');
       runSearch(params.get('q'));
     }
+
+    // Rebuild the embedded YouTube iframe if a YouTube track was already
+    // current when this page loaded (e.g. after a refresh), without
+    // restarting it as a "new" play (no history push, no autoplay-from-0).
+    (function resumeYoutubeOnLoad() {
+      const state = (window.MiniGPTPlayer && window.MiniGPTPlayer.getState()) || {};
+      if (state.provider !== 'youtube' || !state.videoId) return;
+      selectedYoutubeVideoId = state.videoId;
+      document.getElementById('npcEmpty').hidden = true;
+      document.getElementById('npcArchive').hidden = true;
+      document.getElementById('npcSubtitle').textContent = state.artist || 'YouTube';
+      document.getElementById('youtubePlayerWrap').hidden = false;
+      document.getElementById('youtubeWatchLink').href = `https://www.youtube.com/watch?v=${encodeURIComponent(state.videoId)}`;
+      document.getElementById('youtubeWatchLink').hidden = false;
+      loadYouTubeIframeApi().then(YT => {
+        if (selectedYoutubeVideoId !== state.videoId || youtubePlayerInstance) return;
+        youtubePlayerInstance = new YT.Player('youtubePlayer', {
+          width: '100%',
+          height: '100%',
+          videoId: state.videoId,
+          playerVars: {
+            autoplay: state.playing ? 1 : 0,
+            start: Math.floor(state.time || 0),
+            rel: 0,
+            origin: window.location.origin
+          },
+          events: {
+            onReady: event => {
+              window.MiniGPTPlayer.updateYouTubePlayback({
+                time: event.target.getCurrentTime(),
+                duration: event.target.getDuration(),
+                playing: event.target.getPlayerState() === YT.PlayerState.PLAYING
+              });
+            },
+            onStateChange: handleYoutubeStateChange,
+            onError: event => showYoutubePlaybackError(event.data)
+          }
+        });
+      }).catch(() => { });
+    })();
   </script>
 </body>
 

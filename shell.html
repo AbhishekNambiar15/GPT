@@ -12,13 +12,11 @@
         }
 
         html,
-        body,
-        #contentFrame,
-        #musicFrame {
+        body {
             width: 100%;
             height: 100%;
             margin: 0;
-            border: 0
+            position: relative;
         }
 
         body {
@@ -26,15 +24,37 @@
             background: #0a0d16
         }
 
+        #contentFrame,
         #musicFrame {
-            display: none
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            border: 0;
+        }
+
+        /* Never display:none the music frame — that suspends the <audio>
+           element and the embedded YouTube player inside it, which is
+           exactly what stops music from playing while you browse other
+           pages. Instead, the inactive frame stays rendered (so its media
+           keeps playing) but is pushed behind and made non-interactive. */
+        .frame-hidden {
+            opacity: 0;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .frame-visible {
+            opacity: 1;
+            z-index: 1;
         }
     </style>
 </head>
 
 <body>
-    <iframe id="contentFrame" src="index.html" title="MiniGPT application"></iframe>
-    <iframe id="musicFrame" src="music.html" title="MiniGPT music player"></iframe>
+    <iframe id="contentFrame" class="frame-visible" src="index.html" title="MiniGPT application"></iframe>
+    <iframe id="musicFrame" class="frame-hidden" src="music.html" title="MiniGPT music player"></iframe>
     <script>
         const contentFrame = document.getElementById('contentFrame');
         const musicFrame = document.getElementById('musicFrame');
@@ -42,13 +62,17 @@
 
         function showPage(page) {
             if (page === 'music.html') {
-                contentFrame.style.display = 'none';
-                musicFrame.style.display = 'block';
+                contentFrame.classList.remove('frame-visible');
+                contentFrame.classList.add('frame-hidden');
+                musicFrame.classList.remove('frame-hidden');
+                musicFrame.classList.add('frame-visible');
                 return;
             }
             if (!allowedPages.has(page)) return;
-            musicFrame.style.display = 'none';
-            contentFrame.style.display = 'block';
+            musicFrame.classList.remove('frame-visible');
+            musicFrame.classList.add('frame-hidden');
+            contentFrame.classList.remove('frame-hidden');
+            contentFrame.classList.add('frame-visible');
             if (contentFrame.contentWindow.location.pathname.endsWith('/' + page)) return;
             contentFrame.src = page;
         }
