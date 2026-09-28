@@ -1,6 +1,7 @@
-"""Centralized API usage tracking, rate limiting, and response caching for MiniGPT."""
+"""Centralized API usage tracking, rate limiting, security validation, and response caching for MiniGPT."""
 
 import os
+import re
 import json
 import time
 import hashlib
@@ -8,6 +9,93 @@ from datetime import datetime, timezone
 from threading import Lock
 
 USAGE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "api_usage.json")
+
+# Standard YouTube 11-char base64url-like ID regex
+YOUTUBE_VIDEO_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_-]{11}$")
+# Google API key pattern (e.g. AIzaSy...)
+GOOGLE_API_KEY_PATTERN = re.compile(r"AIza[0-9A-Za-z\-_]{20,50}")
+PARAM_KEY_PATTERN = re.compile(r"([?&]key=)[^&\s'\"]+", re.IGNORECASE)
+HEADER_KEY_PATTERN = re.compile(r"(x-goog-api-key:\s*)[^\s,'\"]+", re.IGNORECASE)
+
+
+def redact_secrets(text: str) -> str:
+    """Mask known API keys, tokens, query parameters, and Google API key patterns from error messages or logs."""
+    if not isinstance(text, str):
+        text = str(text)
+    for env_var in ("GEMINI_API_KEY", "YOUTUBE_API_KEY", "SECRET_KEY"):
+        val = os.getenv(env_var)
+        if val and len(val) >= 4:
+            text = text.replace(val, "[REDACTED_API_KEY]")
+    # Mask potential Google API key patterns and query param values
+    text = GOOGLE_API_KEY_PATTERN.sub("[REDACTED_API_KEY]", text)
+    text = PARAM_KEY_PATTERN.sub(r"\1[REDACTED_API_KEY]", text)
+    text = HEADER_KEY_PATTERN.sub(r"\1[REDACTED_API_KEY]", text)
+    return text
+
+
+def sanitize_text(text: str, max_length: int = 4000) -> str:
+    """Strip dangerous control characters, null bytes, and bound string length."""
+    if not isinstance(text, str):
+        return ""
+    # Remove null bytes and non-printable control characters except standard whitespace
+    cleaned = re.sub(r"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]", "", text)
+    return cleaned.strip()[:max_length]
+
+
+def is_valid_video_id(video_id: str) -> bool:
+    """Check if the string is a valid YouTube video ID."""
+    if not isinstance(video_id, str):
+        return False
+    return bool(YOUTUBE_VIDEO_ID_PATTERN.match(video_id.strip()))
+
+
+class IPRateLimiter:
+    """Thread-safe sliding-window rate limiter per client IP and endpoint category."""
+
+    def __init__(self):
+        self._requests = {}
+        self._lock = Lock()
+        self._last_cleanup = time.time()
+
+    def is_allowed(self, client_ip: str, endpoint: str, max_requests: int = 30, window_seconds: int = 60) -> tuple[bool, int]:
+        """Check if request from client_ip is allowed under (max_requests / window_seconds).
+        Returns: (allowed: bool, retry_after_seconds: int)
+        """
+        now = time.time()
+        ip_safe = client_ip or "127.0.0.1"
+        key = f"{ip_safe}:{endpoint}"
+
+        with self._lock:
+            # Periodic cleanup of expired records every 5 minutes
+            if now - self._last_cleanup > 300:
+                self._cleanup(now)
+                self._last_cleanup = now
+
+            timestamps = self._requests.get(key, [])
+            cutoff = now - window_seconds
+            valid_timestamps = [t for t in timestamps if t > cutoff]
+
+            if len(valid_timestamps) >= max_requests:
+                oldest = valid_timestamps[0]
+                retry_after = max(1, int(oldest + window_seconds - now))
+                self._requests[key] = valid_timestamps
+                return False, retry_after
+
+            valid_timestamps.append(now)
+            self._requests[key] = valid_timestamps
+            return True, 0
+
+    def _cleanup(self, now: float):
+        cutoff = now - 3600
+        keys_to_del = []
+        for k, timestamps in self._requests.items():
+            fresh = [t for t in timestamps if t > cutoff]
+            if not fresh:
+                keys_to_del.append(k)
+            else:
+                self._requests[k] = fresh
+        for k in keys_to_del:
+            del self._requests[k]
 
 
 class ResponseCache:
@@ -198,3 +286,4 @@ class UsageTracker:
 # Global singleton instances for the application
 api_cache = ResponseCache()
 api_tracker = UsageTracker()
+rate_limiter = IPRateLimiter()

@@ -162,6 +162,17 @@
       border-radius: 14px;
       padding: 16px;
       text-align: center;
+      transition: all 0.3s ease;
+    }
+
+    #voice.listening {
+      border-color: var(--red);
+      background: rgba(239, 68, 68, 0.08);
+    }
+
+    #voice.speaking {
+      border-color: var(--purple);
+      background: rgba(99, 102, 241, 0.08);
     }
 
     #voice .dot {
@@ -171,12 +182,26 @@
       border-radius: 50%;
       display: inline-block;
       margin-right: 6px;
+      transition: background-color 0.3s ease;
+    }
+
+    #voice.listening .dot {
+      background: var(--red);
+      box-shadow: 0 0 8px var(--red);
+      animation: pulse 1.2s infinite;
+    }
+
+    #voice.speaking .dot {
+      background: var(--purple);
+      box-shadow: 0 0 8px var(--purple);
+      animation: pulse 1.2s infinite;
     }
 
     #voice .say {
       font-size: 11px;
       color: var(--dim2);
       margin: 2px 0 12px;
+      transition: color 0.3s ease;
     }
 
     #voice .mic {
@@ -188,6 +213,64 @@
       color: #fff;
       font-size: 20px;
       cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    #voice .mic:hover {
+      transform: scale(1.05);
+    }
+
+    #voice.listening .mic {
+      background: var(--red);
+      animation: micPulse 1.2s infinite;
+    }
+
+    #voice.speaking .mic {
+      background: #4f46e5;
+    }
+
+    .mic-input-btn {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: var(--panel2);
+      border: 1px solid var(--line);
+      color: var(--dim);
+      font-size: 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+
+    .mic-input-btn:hover {
+      border-color: var(--purple);
+      color: var(--text);
+    }
+
+    .mic-input-btn.listening {
+      background: var(--red);
+      border-color: var(--red);
+      color: #fff;
+      animation: micPulse 1.2s infinite;
+    }
+
+    @keyframes micPulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6);
+      }
+      70% {
+        box-shadow: 0 0 0 12px rgba(239, 68, 68, 0);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+      }
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
     }
 
     #main {
@@ -420,26 +503,30 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 16px;
+      gap: 12px;
       margin: 12px 0 6px;
     }
 
-    .np-controls .play {
-      width: 38px;
-      height: 38px;
+    .np-ctrl-btn {
+      all: unset;
+      width: 32px;
+      height: 32px;
       border-radius: 50%;
-      background: var(--purple);
-      border: none;
-      color: #fff;
+      background: var(--bg);
+      border: 1px solid var(--line);
+      color: var(--dim);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
       cursor: pointer;
+      transition: all 0.2s ease;
     }
 
-    .np-controls button {
-      background: none;
-      border: none;
-      color: var(--dim);
-      cursor: pointer;
-      font-size: 15px;
+    .np-ctrl-btn:hover {
+      border-color: var(--purple);
+      color: var(--text);
+      background: var(--panel2);
     }
 
     .bar {
@@ -465,32 +552,28 @@
       margin-top: 4px;
     }
 
-    .qm-label {
-      font-size: 11px;
-      color: var(--dim2);
-      margin: 12px 0 8px;
-    }
-
-    .qm-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-    }
-
-    .qm-grid button {
+    .mini-auto-btn {
       all: unset;
+      display: block;
+      width: 100%;
+      box-sizing: border-box;
+      margin-top: 10px;
+      padding: 7px 10px;
       background: var(--bg);
       border: 1px solid var(--line);
-      border-radius: 9px;
-      padding: 9px 8px;
-      font-size: 11.5px;
+      border-radius: 8px;
       color: var(--dim);
-      cursor: pointer;
+      font-size: 11.5px;
+      font-weight: 500;
       text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
     }
 
-    .qm-grid button:hover {
+    .mini-auto-btn:hover {
+      border-color: var(--purple);
       color: var(--text);
+      background: var(--panel);
     }
 
     .act-row,
@@ -635,17 +718,24 @@
         </a>
       </div>
       <div>
-        <div class="sec-label" style="margin-bottom:8px;">Quick Actions</div>
-        <div class="qa">
-          <button id="qaTimer">⏱ Start a timer</button>
-          <button id="qaMusic">🎵 Play study music</button>
-          <button id="qaSearch">🔍 Search the web</button>
-          <button id="qaAsk">✦ Ask a question</button>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div class="sec-label">API Usage</div>
+          <span id="overallUsageStatus" class="usage-badge normal">Normal</span>
+        </div>
+        <div class="card" style="padding:12px;margin:0;">
+          <div id="usageContent" class="usage-card">
+            <div class="empty">Loading usage…</div>
+          </div>
+          <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;font-size:10px;color:var(--dim2);">
+            <span>Resets daily</span>
+            <span id="refreshUsageBtn" style="color:var(--purple);cursor:pointer;font-weight:600;">↻ Refresh</span>
+          </div>
         </div>
       </div>
       <div id="voice">
-        <div><span class="dot"></span>Voice is active</div>
-        <div class="say">Say "Hey MiniGPT"</div><button class="mic" id="micBtn">🎤</button>
+        <div><span class="dot"></span><span id="voiceStatusText">Voice Assistant</span></div>
+        <div class="say" id="voiceInstruction">Tap mic to speak</div>
+        <button class="mic" id="micBtn" type="button" aria-label="Tap to speak">🎤</button>
       </div>
     </div>
 
@@ -669,7 +759,8 @@
       </div>
 
       <div id="inputbar">
-        <input id="prompt" placeholder="Type a message…">
+        <input id="prompt" placeholder="Type a message or tap mic to speak…">
+        <button class="mic-input-btn" id="inputMicBtn" type="button" title="Tap to speak" aria-label="Voice input">🎤</button>
         <button class="send" id="send">➤</button>
       </div>
     </div>
@@ -682,37 +773,26 @@
           <div class="np-video" id="npVideoSlot"></div>
           <div class="np-title" id="miniTitle">Nothing playing</div>
           <div class="np-sub" id="miniArtist">Go to Music to search a song</div>
-          <div class="np-controls"><button id="miniPlayBtn" disabled>▶</button></div>
+          <div class="np-controls">
+            <button id="previousTrack" class="np-ctrl-btn" title="Previous (|<<)" aria-label="Previous Track">⏮</button>
+            <button id="miniPlayBtn" disabled title="Play/Pause" aria-label="Play or Pause">▶</button>
+            <button id="nextTrack" class="np-ctrl-btn" title="Next (>>|)" aria-label="Next Track">⏭</button>
+          </div>
           <div class="mini-controls">
             <span class="mini-time" id="miniCur">0:00</span>
             <input type="range" id="miniSeek" min="0" max="100" value="0" disabled>
             <span class="mini-time" id="miniDur">0:00</span>
           </div>
-        </div>
-        <div class="qm-label" style="margin-top:14px;">Quick Music Commands</div>
-        <div class="qm-grid">
-          <button id="previousTrack">⏮ Previous</button>
-          <button id="nextTrack">⏭ Next</button>
-          <button id="autoPlayTrack">🔁 Auto Play</button>
+          <button id="autoPlayTrack" class="mini-auto-btn" type="button">🔁 Auto Play: Off</button>
         </div>
       </div>
       <div class="card">
-        <h3>Recent Activity</h3>
+        <h3>Recent Activity <a class="link" id="toggleActivity" href="javascript:void(0)" style="display:none;">All</a></h3>
         <div id="activityList"></div>
       </div>
       <div class="card">
         <h3>Memory <a class="link" href="memory.html">View all</a></h3>
         <div id="memoryList"></div>
-      </div>
-      <div class="card" id="apiUsageCard">
-        <h3>API Usage <span id="overallUsageStatus" class="usage-badge normal">Normal</span></h3>
-        <div id="usageContent" class="usage-card">
-          <div class="empty">Loading usage…</div>
-        </div>
-        <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;font-size:10.5px;color:var(--dim2);">
-          <span>Resets daily</span>
-          <span id="refreshUsageBtn" style="color:var(--purple);cursor:pointer;font-weight:600;">↻ Refresh</span>
-        </div>
       </div>
     </div>
   </div>
@@ -745,12 +825,28 @@
     function getMode() { return localStorage.getItem('mg_mode') || 'Study Mode'; }
 
     /* ---------- render right panel ---------- */
+    let activityMinimized = true;
     function renderActivity() {
       const list = getActivity();
       const el = document.getElementById('activityList');
-      el.innerHTML = list.length ? list.map(a =>
+      const toggle = document.getElementById('toggleActivity');
+      if (!el) return;
+
+      if (!list.length) {
+        el.innerHTML = `<div class="empty">No recent activity yet.</div>`;
+        if (toggle) toggle.style.display = 'none';
+        return;
+      }
+
+      if (toggle) {
+        toggle.style.display = list.length > 1 ? 'inline' : 'none';
+        toggle.textContent = activityMinimized ? `All (${list.length})` : 'Minimize';
+      }
+
+      const displayed = activityMinimized ? list.slice(0, 1) : list;
+      el.innerHTML = displayed.map(a =>
         `<div class="act-row"><div class="ic">${a.icon}</div><div><div class="t">${a.text}</div><div class="s">${a.time}</div></div></div>`
-      ).join('') : `<div class="empty">No recent activity yet.</div>`;
+      ).join('');
     }
     function renderMemory() {
       const list = getMemory();
@@ -843,9 +939,16 @@
         chatHistory.push({ role: 'bot', text: data.reply });
         const btime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         thinking.querySelector('.bubble').innerHTML = `${reply}<time>${btime}</time>`;
+
+        if (isVoiceActive) {
+          speakReply(data.reply);
+        }
       } catch (error) {
         const message = `I couldn't reach the AI service. ${esc(error.message)}`;
         thinking.querySelector('.bubble').innerHTML = message;
+        if (isVoiceActive) {
+          speakReply("Sorry, I could not reach the AI service.");
+        }
       } finally {
         isChatInFlight = false;
         sendBtn.disabled = false;
@@ -858,12 +961,150 @@
     document.getElementById('send').onclick = send;
     document.getElementById('prompt').addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
 
-    /* ---------- quick actions ---------- */
-    document.getElementById('qaTimer').onclick = () => location.href = 'tools.html';
-    document.getElementById('qaMusic').onclick = () => location.href = 'music.html';
-    document.getElementById('qaSearch').onclick = () => location.href = 'tools.html';
-    document.getElementById('qaAsk').onclick = () => document.getElementById('prompt').focus();
-    document.getElementById('micBtn').onclick = () => { };
+    /* ---------- activity toggle ---------- */
+    const toggleActBtn = document.getElementById('toggleActivity');
+    if (toggleActBtn) {
+      toggleActBtn.onclick = (e) => {
+        e.preventDefault();
+        activityMinimized = !activityMinimized;
+        renderActivity();
+      };
+    }
+
+    /* ---------- Voice Assistant (Speech-to-Text & Text-to-Speech) ---------- */
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition = null;
+    let isListening = false;
+    let isVoiceActive = false;
+
+    function updateVoiceUI(state, statusText, subText, micSymbol) {
+      const voiceBox = document.getElementById('voice');
+      const statusEl = document.getElementById('voiceStatusText');
+      const subEl = document.getElementById('voiceInstruction');
+      const sidebarMic = document.getElementById('micBtn');
+      const inputMic = document.getElementById('inputMicBtn');
+
+      if (voiceBox) {
+        voiceBox.classList.remove('listening', 'speaking');
+        if (state) voiceBox.classList.add(state);
+      }
+      if (inputMic) {
+        inputMic.classList.remove('listening');
+        if (state === 'listening') inputMic.classList.add('listening');
+      }
+      if (statusEl && statusText) statusEl.textContent = statusText;
+      if (subEl && subText) subEl.textContent = subText;
+      if (sidebarMic && micSymbol) sidebarMic.textContent = micSymbol;
+    }
+
+    if (SpeechRecognition) {
+      recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
+
+      recognition.onstart = () => {
+        isListening = true;
+        updateVoiceUI('listening', 'Listening…', 'Speak your question now', '⏹');
+      };
+
+      recognition.onresult = (event) => {
+        const transcript = (event.results && event.results[0] && event.results[0][0] && event.results[0][0].transcript || '').trim();
+        if (transcript) {
+          const promptInput = document.getElementById('prompt');
+          promptInput.value = transcript;
+          isVoiceActive = true;
+          send();
+        }
+      };
+
+      recognition.onerror = (event) => {
+        console.warn('Speech recognition error:', event.error);
+        if (event.error === 'not-allowed') {
+          updateVoiceUI(null, 'Mic Blocked', 'Allow microphone access in browser', '🎤');
+        } else if (event.error === 'no-speech') {
+          updateVoiceUI(null, 'Voice Assistant', 'No speech detected. Tap to retry', '🎤');
+        } else {
+          updateVoiceUI(null, 'Voice Assistant', 'Tap mic to speak', '🎤');
+        }
+      };
+
+      recognition.onend = () => {
+        isListening = false;
+        if (!window.speechSynthesis || !window.speechSynthesis.speaking) {
+          updateVoiceUI(null, 'Voice Assistant', 'Tap mic to speak', '🎤');
+        }
+      };
+    }
+
+    function speakReply(text) {
+      if (!window.speechSynthesis) return;
+      window.speechSynthesis.cancel();
+
+      const clean = text
+        .replace(/```[\s\S]*?```/g, 'Here is the code block.')
+        .replace(/`([^`]+)`/g, '$1')
+        .replace(/[*_~#]/g, '')
+        .replace(/https?:\/\/\S+/g, '')
+        .trim();
+
+      if (!clean) return;
+
+      const utterance = new SpeechSynthesisUtterance(clean);
+      utterance.lang = 'en-US';
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+
+      utterance.onstart = () => {
+        updateVoiceUI('speaking', 'Speaking…', 'MiniGPT is answering', '🔊');
+      };
+
+      utterance.onend = () => {
+        updateVoiceUI(null, 'Voice Assistant', 'Tap mic to speak', '🎤');
+        isVoiceActive = false;
+      };
+
+      utterance.onerror = () => {
+        updateVoiceUI(null, 'Voice Assistant', 'Tap mic to speak', '🎤');
+        isVoiceActive = false;
+      };
+
+      const voices = window.speechSynthesis.getVoices();
+      const voice = voices.find(v => v.lang.startsWith('en') && (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Samantha') || v.name.includes('David') || v.name.includes('Jenny')));
+      if (voice) utterance.voice = voice;
+
+      window.speechSynthesis.speak(utterance);
+    }
+
+    function toggleMic() {
+      if (window.speechSynthesis && window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+        updateVoiceUI(null, 'Voice Assistant', 'Tap mic to speak', '🎤');
+        isVoiceActive = false;
+        return;
+      }
+
+      if (!SpeechRecognition) {
+        alert('Speech recognition is not supported in this browser. Please try Chrome, Edge, or Safari.');
+        return;
+      }
+
+      if (isListening) {
+        recognition.stop();
+      } else {
+        try {
+          recognition.start();
+        } catch (err) {
+          console.warn('Speech recognition start error:', err);
+        }
+      }
+    }
+
+    const micBtn = document.getElementById('micBtn');
+    if (micBtn) micBtn.onclick = toggleMic;
+
+    const inputMicBtn = document.getElementById('inputMicBtn');
+    if (inputMicBtn) inputMicBtn.onclick = toggleMic;
 
     /* ---------- quick music actions ---------- */
     document.getElementById('previousTrack').onclick = () => window.MiniGPTPlayer.previous();
@@ -883,6 +1124,8 @@
     function syncMusicCard(state) {
       state = state || currentMusicState();
       miniPlay.textContent = state.playing ? '\u275A\u275A' : '\u25B6';
+      const autoBtn = document.getElementById('autoPlayTrack');
+      if (autoBtn) autoBtn.textContent = state.autoPlay ? '🔁 Auto Play: On' : '🔁 Auto Play: Off';
       const wantsVideo = laptopQuery.matches && state.provider === 'youtube' && Boolean(state.videoId);
       miniBar.classList.toggle('has-video', wantsVideo);
       reportVideoSlot(wantsVideo);
