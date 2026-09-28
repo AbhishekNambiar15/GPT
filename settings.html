@@ -111,6 +111,17 @@
           <div class="row"><input id="nameInput"><button id="saveName">Save</button></div>
           <div class="saved" id="savedMsg"></div>
         </div>
+        <div class="card" id="apiUsageCard">
+          <h3>API Usage & Quotas <span id="overallUsageStatus" class="usage-badge normal">Normal</span></h3>
+          <p>Monitor your daily API requests and quotas. Limits are configured in your <code>.env</code> file.</p>
+          <div id="usageContent" class="usage-card">
+            <div class="empty">Loading usage…</div>
+          </div>
+          <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;font-size:11.5px;color:var(--dim2);">
+            <span>Resets daily (UTC)</span>
+            <button id="refreshUsageBtn" style="padding:4px 10px;font-size:11px;">↻ Refresh</button>
+          </div>
+        </div>
         <div class="card">
           <h3>Reset data</h3>
           <p>Clears your name, activity log, memories and mode. You'll be asked for your name again.</p>
@@ -144,6 +155,74 @@
         location.href = 'welcome.html';
       }
     };
+
+    /* ---------- API Usage ---------- */
+    async function loadApiUsage() {
+      try {
+        const res = await fetch('/api/usage');
+        if (!res.ok) return;
+        const data = await res.json();
+        renderApiUsage(data);
+      } catch (err) {}
+    }
+
+    function renderApiUsage(data) {
+      const container = document.getElementById('usageContent');
+      if (!container || !data) return;
+
+      const services = [
+        { key: 'gemini', label: 'Gemini' },
+        { key: 'youtube', label: 'YouTube' }
+      ];
+
+      let worstStatus = 'normal';
+      const statusRank = { normal: 0, warning: 1, critical: 2, exhausted: 3 };
+
+      let html = '';
+      services.forEach(svc => {
+        const info = data[svc.key] || { used: 0, limit: 1000, remaining: 1000, percentage: 0, status: 'normal' };
+        const status = info.status || 'normal';
+        if ((statusRank[status] || 0) > (statusRank[worstStatus] || 0)) {
+          worstStatus = status;
+        }
+
+        const pct = Math.min(100, Math.max(0, info.percentage || 0));
+        html += `
+          <div class="usage-row">
+            <div class="usage-row-head">
+              <span>${svc.label}</span>
+              <span class="usage-counts">${info.used} / ${info.limit}</span>
+            </div>
+            <div class="usage-bar-track">
+              <div class="usage-bar-fill ${status}" style="width: ${pct}%"></div>
+            </div>
+            <div class="usage-sub">
+              <span>Remaining: ${info.remaining}</span>
+              <span>${pct.toFixed(1)}%</span>
+            </div>
+            ${status === 'warning' ? '<div class="usage-alert warning">⚠️ Approaching daily limit</div>' : ''}
+            ${status === 'critical' ? '<div class="usage-alert critical">⚠️ High usage: limit nearly reached</div>' : ''}
+            ${status === 'exhausted' ? '<div class="usage-alert exhausted">⛔ Daily limit reached. Calls paused.</div>' : ''}
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+
+      const badge = document.getElementById('overallUsageStatus');
+      if (badge) {
+        badge.className = `usage-badge ${worstStatus}`;
+        badge.textContent = worstStatus === 'normal' ? 'Normal' :
+                            worstStatus === 'warning' ? 'Warning' :
+                            worstStatus === 'critical' ? 'High Usage' : 'Limit Reached';
+      }
+    }
+
+    const refreshBtn = document.getElementById('refreshUsageBtn');
+    if (refreshBtn) refreshBtn.onclick = () => loadApiUsage();
+
+    loadApiUsage();
+    setInterval(loadApiUsage, 30000);
   </script>
 </body>
 

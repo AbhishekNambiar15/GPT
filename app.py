@@ -1,16 +1,19 @@
-from urllib.request import Request, urlopen
+"""MiniGPT Flask backend with Gemini AI, YouTube player, and API usage management."""
+
+import json
+import os
+import re
+import time
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
+from urllib.request import Request, urlopen
+
 from dotenv import load_dotenv
-import time
-import os
-import json
-import re
-from flask import Flask, request, jsonify, send_from_directory
-"""MiniGPT Flask backend using the Gemini API."""
+from flask import Flask, jsonify, request, send_from_directory
+
+from api_manager import api_cache, api_tracker
 
 load_dotenv()
-
 
 app = Flask(__name__, static_folder=".", static_url_path="")
 
@@ -34,11 +37,24 @@ def stats():
     return jsonify(MODEL_INFO)
 
 
+@app.route("/api/usage")
+def usage():
+    return jsonify(api_tracker.get_usage_summary())
+
+
 @app.route("/api/youtube/search")
 def youtube_search():
     query = request.args.get("q", "").strip()
     if not query:
         return jsonify({"error": "Enter a song or artist to search YouTube."}), 400
+
+    cache_key = f"yt_search:{query.lower()}"
+    cached_videos = api_cache.get(cache_key)
+    if cached_videos is not None:
+        return jsonify({"videos": cached_videos, "cached": True})
+
+    if api_tracker.is_limit_reached("youtube"):
+        return jsonify(api_tracker.get_limit_reached_response("youtube")), 429
 
     api_key = os.getenv("YOUTUBE_API_KEY")
     if not api_key:
@@ -61,6 +77,7 @@ def youtube_search():
     try:
         with urlopen(http_request, timeout=20) as response:
             result = json.loads(response.read().decode("utf-8"))
+            api_tracker.record_usage("youtube", endpoint="search", count=1)
     except TimeoutError:
         return jsonify({"error": "YouTube search timed out. Try again."}), 504
     except HTTPError as error:
@@ -92,6 +109,7 @@ def youtube_search():
             "channelTitle": snippet.get("channelTitle", "YouTube"),
             "thumbnail": thumbnail,
         })
+    api_cache.set(cache_key, videos, ttl_seconds=3600)
     return jsonify({"videos": videos})
 
 
@@ -118,14 +136,24 @@ def _normalize_song_title(title):
     return t
 
 
-def _youtube_get(url):
-    """GET a YouTube Data API URL. Returns (data, None) on success or
-    (None, (response, status)) on failure, mirroring the error handling used
-    by the existing /api/youtube/search route."""
+def _youtube_get(url, endpoint="api", ttl=3600):
+    """GET a YouTube Data API URL. Checks cache first, enforces usage limits,
+    records actual external requests, and caches responses."""
+    cache_key = f"yt_url:{url}"
+    cached = api_cache.get(cache_key)
+    if cached is not None:
+        return cached, None
+
+    if api_tracker.is_limit_reached("youtube"):
+        return None, (jsonify(api_tracker.get_limit_reached_response("youtube")), 429)
+
     http_request = Request(url, headers={"Accept": "application/json"})
     try:
         with urlopen(http_request, timeout=20) as response:
-            return json.loads(response.read().decode("utf-8")), None
+            data = json.loads(response.read().decode("utf-8"))
+            api_tracker.record_usage("youtube", endpoint=endpoint, count=1)
+            api_cache.set(cache_key, data, ttl_seconds=ttl)
+            return data, None
     except TimeoutError:
         return None, (jsonify({"error": "YouTube request timed out. Try again."}), 504)
     except HTTPError as error:
@@ -153,7 +181,10 @@ def _youtube_search_videos(api_key, query, max_results=10):
         "maxResults": max_results,
     })
     data, error = _youtube_get(
-        f"https://www.googleapis.com/youtube/v3/search?{params}")
+        f"https://www.googleapis.com/youtube/v3/search?{params}",
+        endpoint="related_search",
+        ttl=3600
+    )
     if error:
         return [], error
     videos = []
@@ -199,55 +230,67 @@ def youtube_related():
     exclude_titles = {t for t in request.args.get(
         "excludeTitles", "").split("|") if t}
 
-    # Look up the currently playing video so recommendations can be based on
-    # its real artist/genre metadata instead of just the raw search term.
-    details_params = urlencode(
-        {"key": api_key, "part": "snippet", "id": video_id})
-    details, error = _youtube_get(
-        f"https://www.googleapis.com/youtube/v3/videos?{details_params}")
-    if error:
-        return error
-    items = (details or {}).get("items") or []
-    snippet = (items[0].get("snippet") if items else {}) or {}
-    title = snippet.get("title") or fallback_title
-    channel_title = snippet.get("channelTitle") or fallback_channel
-    tags = snippet.get("tags") or []
+    candidate_cache_key = f"yt_related_candidates:{video_id}"
+    candidates = api_cache.get(candidate_cache_key)
 
-    exclude_titles.add(_normalize_song_title(title))
-
-    queries = []
-    if channel_title:
-        queries.append(channel_title)
-    if tags:
-        queries.append(" ".join(tags[:4]))
-    if title:
-        words = [w for w in re.sub(
-            r"[^\w\s]", " ", title).split() if len(w) > 2]
-        if words:
-            queries.append(" ".join(words[:6]))
-    if not queries:
-        queries.append("popular music")
-
-    seen_ids = set()
-    candidates = []
-    last_error = None
-    for query in queries:
-        videos, error = _youtube_search_videos(api_key, query, max_results=10)
+    if candidates is None:
+        # Look up the currently playing video so recommendations can be based on
+        # its real artist/genre metadata instead of just the raw search term.
+        details_params = urlencode(
+            {"key": api_key, "part": "snippet", "id": video_id})
+        details, error = _youtube_get(
+            f"https://www.googleapis.com/youtube/v3/videos?{details_params}",
+            endpoint="video_details",
+            ttl=7200
+        )
         if error:
-            last_error = error
-            continue
-        for video in videos:
-            if video["videoId"] in seen_ids:
-                continue
-            seen_ids.add(video["videoId"])
-            candidates.append(video)
-        if len(candidates) >= 24:
-            break
+            return error
+        items = (details or {}).get("items") or []
+        snippet = (items[0].get("snippet") if items else {}) or {}
+        title = snippet.get("title") or fallback_title
+        channel_title = snippet.get("channelTitle") or fallback_channel
+        tags = snippet.get("tags") or []
 
-    if not candidates:
-        if last_error:
-            return last_error
-        return jsonify({"videos": [], "error": "No related videos were found."})
+        exclude_titles.add(_normalize_song_title(title))
+
+        queries = []
+        if channel_title:
+            queries.append(channel_title)
+        if tags:
+            queries.append(" ".join(tags[:4]))
+        if title:
+            words = [w for w in re.sub(
+                r"[^\w\s]", " ", title).split() if len(w) > 2]
+            if words:
+                queries.append(" ".join(words[:6]))
+        if not queries:
+            queries.append("popular music")
+
+        seen_ids = set()
+        candidates = []
+        last_error = None
+        for query in queries:
+            videos, error = _youtube_search_videos(api_key, query, max_results=10)
+            if error:
+                last_error = error
+                continue
+            for video in videos:
+                if video["videoId"] in seen_ids:
+                    continue
+                seen_ids.add(video["videoId"])
+                candidates.append(video)
+            if len(candidates) >= 24:
+                break
+
+        if not candidates:
+            if last_error:
+                return last_error
+            return jsonify({"videos": [], "error": "No related videos were found."})
+
+        api_cache.set(candidate_cache_key, candidates, ttl_seconds=3600)
+    else:
+        if fallback_title:
+            exclude_titles.add(_normalize_song_title(fallback_title))
 
     def keep(video, avoid_duplicate_titles):
         if video["videoId"] in exclude_ids:
@@ -283,13 +326,25 @@ def chat():
     if not messages or messages[-1]["content"] != prompt:
         messages.append({"role": "user", "content": prompt})
 
+    model_name = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+    cache_key = "gemini_chat:" + api_cache.hash_key(model_name, messages)
+    cached_reply = api_cache.get(cache_key)
+    if cached_reply is not None:
+        return jsonify({
+            "reply": cached_reply,
+            "latency_ms": 0.0,
+            "cached": True,
+        })
+
+    if api_tracker.is_limit_reached("gemini"):
+        return jsonify(api_tracker.get_limit_reached_response("gemini")), 429
+
     gemini_key = os.getenv("GEMINI_API_KEY")
     if not gemini_key:
         return jsonify({
             "error": "No Gemini API key is configured. Add GEMINI_API_KEY to the project's .env file or set it in the same terminal before starting the app."
         }), 503
 
-    model_name = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
     endpoint = (
         "https://generativelanguage.googleapis.com/v1beta/models/"
         f"{model_name}:generateContent?key={gemini_key}"
@@ -325,6 +380,8 @@ def chat():
         if not reply:
             reason = candidate.get("finishReason") or "empty response"
             raise ValueError(f"Gemini returned no text: {reason}")
+        api_tracker.record_usage("gemini", endpoint="chat", count=1)
+        api_cache.set(cache_key, reply, ttl_seconds=1800)
     except TimeoutError:
         return jsonify({"error": "Gemini did not respond within 120 seconds."}), 504
     except HTTPError as error:

@@ -45,6 +45,89 @@
       }
     }
 
+    /* ---- Unified search card ---- */
+    .unified-search {
+      background: var(--panel2);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 16px 18px 18px;
+    }
+
+    .us-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    .us-tabs {
+      display: inline-flex;
+      gap: 4px;
+      padding: 4px;
+      background: var(--bg);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+    }
+
+    .us-tab {
+      all: unset;
+      padding: 7px 14px;
+      border-radius: 9px;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--dim);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .us-tab:hover {
+      color: var(--text);
+    }
+
+    .us-tab.active {
+      background: var(--purple);
+      color: #fff;
+    }
+
+    .us-collapse {
+      all: unset;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--dim);
+      padding: 6px 10px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .us-collapse:hover {
+      color: var(--text);
+      background: var(--panel);
+    }
+
+    .us-collapse[hidden],
+    .us-body[hidden],
+    .us-pane[hidden],
+    .search-row select[hidden] {
+      display: none !important;
+    }
+
+    .us-body {
+      margin-top: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .us-body .youtube-results {
+      margin-top: 0;
+    }
+
+    .us-body .lyrics-panel {
+      margin-top: 0;
+    }
+
     .search-row {
       display: flex;
       gap: 10px;
@@ -338,6 +421,30 @@
        setting .hidden = true in JS did nothing and more than one of
        video / archive-art / empty-state could render at once. This makes
        hidden always win, so exactly one is ever shown. */
+    /* Slot mode (only when the Chat page floats this frame over its music
+       card): show nothing but the video, filling the whole frame. */
+    html.slot-mode body {
+      overflow: hidden;
+    }
+
+    html.slot-mode #youtubePlayerWrap {
+      display: block !important;
+      position: fixed;
+      inset: 0;
+      z-index: 100000;
+      width: 100vw;
+      height: 100vh;
+      aspect-ratio: auto;
+      border: 0;
+      border-radius: 0;
+      margin: 0;
+    }
+
+    html.slot-mode #youtubePlayerWrap iframe {
+      width: 100% !important;
+      height: 100% !important;
+    }
+
     .npc-media [hidden] {
       display: none !important;
     }
@@ -887,10 +994,18 @@
       <div id="content">
         <div class="player-grid">
         <div class="search-col">
-        <div>
+        <section class="unified-search" aria-label="Search">
+          <div class="us-top">
+            <div class="us-tabs" role="tablist" aria-label="Search source">
+              <button type="button" class="us-tab active" data-mode="youtube" role="tab" aria-selected="true">▶ YouTube</button>
+              <button type="button" class="us-tab" data-mode="archive" role="tab" aria-selected="false">🎵 Archive</button>
+              <button type="button" class="us-tab" data-mode="lyrics" role="tab" aria-selected="false">📝 Lyrics</button>
+            </div>
+            <button type="button" class="us-collapse" id="usCollapseBtn" aria-expanded="true" hidden>Minimize ▲</button>
+          </div>
           <div class="search-row">
-            <input id="searchInput" placeholder="Search for a song or artist…">
-            <select id="musicPreset" aria-label="Browse music by preset">
+            <input id="unifiedInput" placeholder="Search YouTube for a song or artist…">
+            <select id="musicPreset" aria-label="Browse music by preset" hidden>
               <option value="">Browse by mood</option>
               <option value="lofi">Lo-fi</option>
               <option value="study">Study</option>
@@ -899,20 +1014,34 @@
               <option value="piano">Piano</option>
               <option value="focus">Focus</option>
             </select>
-            <button id="searchBtn">Search</button>
+            <button id="unifiedSearchBtn" type="button">Search</button>
           </div>
-          <div class="hint" style="margin-top:8px;">Streams full royalty-free tracks from Internet Archive.</div>
-          <div class="results" id="results"></div>
-        </div>
-        <section class="youtube-lookup" aria-labelledby="youtubeHeading">
-          <h3 id="youtubeHeading">YouTube</h3>
-          <div class="search-row">
-            <input id="youtubeSearchInput" placeholder="Search YouTube for a song or artist…">
-            <button id="youtubeSearchButton" type="button">Search videos</button>
+          <div class="us-body" id="usBody">
+            <p class="hint" id="usHint">Videos play using YouTube's embedded player.</p>
+            <div class="us-pane" data-pane="youtube">
+              <div class="loading" id="youtubeStatus" aria-live="polite" hidden></div>
+              <div class="youtube-results" id="youtubeResults"></div>
+            </div>
+            <div class="us-pane" data-pane="archive" hidden>
+              <div class="results" id="results"></div>
+            </div>
+            <div class="us-pane" data-pane="lyrics" hidden>
+              <div class="lyrics-panel" aria-live="polite">
+                <p class="lyrics-state" id="lyricsStatus">Lyrics will appear here after a search.</p>
+                <article class="lyrics-card" id="lyricsCard" hidden>
+                  <h4 id="lyricsTitle"></h4>
+                  <p class="lyrics-artist" id="lyricsArtist"></p>
+                  <pre class="lyrics-text" id="lyricsText" tabindex="0"></pre>
+                  <a class="lyrics-source" href="https://lrclib.net/" target="_blank" rel="noopener noreferrer">Lyrics
+                    source: LRCLIB</a>
+                </article>
+                <div class="lyrics-fallback" id="lyricsFallback" hidden>
+                  <p id="lyricsFallbackMessage"></p>
+                  <div class="lyrics-fallback-links" id="lyricsResults"></div>
+                </div>
+              </div>
+            </div>
           </div>
-          <p class="hint" style="margin-top:8px;">Videos play using YouTube's embedded player.</p>
-          <div class="loading" id="youtubeStatus" aria-live="polite" hidden></div>
-          <div class="youtube-results" id="youtubeResults"></div>
         </section>
         </div>
         <div class="now-playing-col">
@@ -966,27 +1095,6 @@
         </section>
         </div>
         </div>
-        <section class="lyrics-lookup" aria-labelledby="lyricsHeading">
-          <h3 id="lyricsHeading">Lyrics search</h3>
-          <div class="search-row">
-            <input id="lyricsInput" placeholder="Enter a song title or artist…">
-            <button id="lyricsSearchBtn" type="button">Find lyrics</button>
-          </div>
-          <div class="lyrics-panel" aria-live="polite">
-            <p class="lyrics-state" id="lyricsStatus">Lyrics will appear here after a search.</p>
-            <article class="lyrics-card" id="lyricsCard" hidden>
-              <h4 id="lyricsTitle"></h4>
-              <p class="lyrics-artist" id="lyricsArtist"></p>
-              <pre class="lyrics-text" id="lyricsText" tabindex="0"></pre>
-              <a class="lyrics-source" href="https://lrclib.net/" target="_blank" rel="noopener noreferrer">Lyrics
-                source: LRCLIB</a>
-            </article>
-            <div class="lyrics-fallback" id="lyricsFallback" hidden>
-              <p id="lyricsFallbackMessage"></p>
-              <div class="lyrics-fallback-links" id="lyricsResults"></div>
-            </div>
-          </div>
-        </section>
         <section class="recent-history" aria-labelledby="recentHistoryHeading">
           <div class="recent-history-head">
             <span class="rh-ic">🕒</span>
@@ -1095,8 +1203,6 @@
         results.innerHTML = `<div class="error">Search failed — check your internet connection and try again.</div>`;
       }
     }
-    document.getElementById('searchBtn').onclick = () => runSearch(document.getElementById('searchInput').value.trim());
-    document.getElementById('searchInput').addEventListener('keydown', e => { if (e.key === 'Enter') runSearch(e.target.value.trim()); });
 
     let youtubeApiPromise = null;
     let youtubePlayerInstance = null;
@@ -1253,94 +1359,116 @@
       }
     }
 
+    let isYoutubeSearchInFlight = false;
+    const clientYoutubeCache = new Map();
+
+    function renderYoutubeSearchResults(videos) {
+      const status = document.getElementById('youtubeStatus');
+      const results = document.getElementById('youtubeResults');
+      results.replaceChildren();
+      status.hidden = true;
+
+      videos.forEach(video => {
+        const result = document.createElement('div');
+        result.className = 'youtube-video-result';
+
+        const thumbBtn = document.createElement('button');
+        thumbBtn.type = 'button';
+        thumbBtn.className = 'yt-thumb-btn';
+        thumbBtn.setAttribute('aria-label', `Play ${video.title}`);
+        const thumbnail = document.createElement('img');
+        thumbnail.src = video.thumbnail;
+        thumbnail.alt = '';
+        thumbnail.loading = 'lazy';
+        thumbBtn.appendChild(thumbnail);
+        thumbBtn.onclick = () => playYoutubeVideo(video);
+
+        const info = document.createElement('div');
+        info.className = 'yt-info';
+        const title = document.createElement('button');
+        title.type = 'button';
+        title.className = 'youtube-video-title yt-title-btn';
+        title.textContent = video.title;
+        title.onclick = () => playYoutubeVideo(video);
+        const channel = document.createElement('span');
+        channel.className = 'youtube-video-channel';
+        channel.textContent = video.channelTitle;
+        const actions = document.createElement('div');
+        actions.className = 'yt-actions';
+        const queueBtn = document.createElement('button');
+        queueBtn.type = 'button';
+        queueBtn.className = 'yt-action';
+        queueBtn.textContent = '+ Queue';
+        queueBtn.onclick = () => {
+          window.MiniGPTPlayer.addToQueue({ ...video, provider: 'youtube' });
+          renderQueuePanel();
+        };
+        const nextBtn = document.createElement('button');
+        nextBtn.type = 'button';
+        nextBtn.className = 'yt-action';
+        nextBtn.textContent = 'Play Next';
+        nextBtn.onclick = () => {
+          window.MiniGPTPlayer.playNext({ ...video, provider: 'youtube' });
+          renderQueuePanel();
+        };
+        actions.append(queueBtn, nextBtn);
+        info.append(title, channel, actions);
+
+        result.append(thumbBtn, info);
+        results.appendChild(result);
+      });
+    }
+
     async function searchYouTube(term) {
       const status = document.getElementById('youtubeStatus');
       const results = document.getElementById('youtubeResults');
-      const button = document.getElementById('youtubeSearchButton');
-      results.replaceChildren();
-      // Note: searching must never touch the Now Playing video — it used to
-      // stop/hide the player here, which cut off whatever was playing every
-      // time someone looked up the next song. Playback is only ever
-      // started/stopped/switched from playYoutubeVideo() below.
+      const button = document.getElementById('unifiedSearchBtn');
+      if (isYoutubeSearchInFlight) return;
+
+      term = (term || '').trim();
       if (!term) {
+        results.replaceChildren();
         status.textContent = 'Enter a song or artist to search YouTube.';
         status.hidden = false;
         return;
       }
 
+      const cacheKey = term.toLowerCase();
+      if (clientYoutubeCache.has(cacheKey)) {
+        renderYoutubeSearchResults(clientYoutubeCache.get(cacheKey));
+        return;
+      }
+
+      results.replaceChildren();
       status.textContent = 'Searching YouTube…';
       status.hidden = false;
       button.disabled = true;
+      isYoutubeSearchInFlight = true;
       try {
         const response = await fetch(`/api/youtube/search?q=${encodeURIComponent(term)}`);
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error || `YouTube search returned HTTP ${response.status}.`);
+        if (!response.ok) {
+          if (data && data.error === 'API usage limit reached') {
+            throw new Error(`⚠️ YouTube API daily limit reached (${data.used}/${data.limit} requests used). Searches are paused until the daily quota resets.`);
+          }
+          throw new Error(data.error || `YouTube search returned HTTP ${response.status}.`);
+        }
         const videos = data.videos || [];
         if (!videos.length) {
           status.textContent = 'No embeddable videos were found. Try another search.';
           return;
         }
 
-        status.hidden = true;
-        videos.forEach(video => {
-          const result = document.createElement('div');
-          result.className = 'youtube-video-result';
-
-          const thumbBtn = document.createElement('button');
-          thumbBtn.type = 'button';
-          thumbBtn.className = 'yt-thumb-btn';
-          thumbBtn.setAttribute('aria-label', `Play ${video.title}`);
-          const thumbnail = document.createElement('img');
-          thumbnail.src = video.thumbnail;
-          thumbnail.alt = '';
-          thumbnail.loading = 'lazy';
-          thumbBtn.appendChild(thumbnail);
-          thumbBtn.onclick = () => playYoutubeVideo(video);
-
-          const info = document.createElement('div');
-          info.className = 'yt-info';
-          const title = document.createElement('button');
-          title.type = 'button';
-          title.className = 'youtube-video-title yt-title-btn';
-          title.textContent = video.title;
-          title.onclick = () => playYoutubeVideo(video);
-          const channel = document.createElement('span');
-          channel.className = 'youtube-video-channel';
-          channel.textContent = video.channelTitle;
-          const actions = document.createElement('div');
-          actions.className = 'yt-actions';
-          const queueBtn = document.createElement('button');
-          queueBtn.type = 'button';
-          queueBtn.className = 'yt-action';
-          queueBtn.textContent = '+ Queue';
-          queueBtn.onclick = () => {
-            window.MiniGPTPlayer.addToQueue({ ...video, provider: 'youtube' });
-            renderQueuePanel();
-          };
-          const nextBtn = document.createElement('button');
-          nextBtn.type = 'button';
-          nextBtn.className = 'yt-action';
-          nextBtn.textContent = 'Play Next';
-          nextBtn.onclick = () => {
-            window.MiniGPTPlayer.playNext({ ...video, provider: 'youtube' });
-            renderQueuePanel();
-          };
-          actions.append(queueBtn, nextBtn);
-          info.append(title, channel, actions);
-
-          result.append(thumbBtn, info);
-          results.appendChild(result);
-        });
+        clientYoutubeCache.set(cacheKey, videos);
+        renderYoutubeSearchResults(videos);
       } catch (error) {
         status.textContent = error.message || 'YouTube search failed. Try again.';
+        status.hidden = false;
       } finally {
         button.disabled = false;
+        isYoutubeSearchInFlight = false;
       }
     }
-    document.getElementById('youtubeSearchButton').onclick = () => searchYouTube(document.getElementById('youtubeSearchInput').value.trim());
-    document.getElementById('youtubeSearchInput').addEventListener('keydown', e => {
-      if (e.key === 'Enter') searchYouTube(e.target.value.trim());
-    });
 
     function fmtQueueArtwork(item) {
       return item.artwork || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="44" height="44"%3E%3Crect width="44" height="44" fill="%23161b28"/%3E%3C/svg%3E';
@@ -1412,6 +1540,11 @@
       if (state.playing) document.getElementById('queueStatus').hidden = true;
     });
     renderQueuePanel();
+
+    window.addEventListener('message', e => {
+      if (e.origin !== window.location.origin || !e.data || e.data.type !== 'video-slot-mode') return;
+      document.documentElement.classList.toggle('slot-mode', Boolean(e.data.on));
+    });
 
     /* ---- Now Playing card: mirrors the shared player state. The YouTube
        case just shows/relies on the existing embedded iframe (native
@@ -1573,7 +1706,7 @@
       const status = document.getElementById('lyricsStatus');
       const card = document.getElementById('lyricsCard');
       const fallback = document.getElementById('lyricsFallback');
-      const searchButton = document.getElementById('lyricsSearchBtn');
+      const searchButton = document.getElementById('unifiedSearchBtn');
       card.hidden = true;
       fallback.hidden = true;
       if (!term) {
@@ -1624,26 +1757,63 @@
         if (requestId === lyricsRequestId) searchButton.disabled = false;
       }
     }
-    document.getElementById('lyricsSearchBtn').onclick = () => findLyrics(document.getElementById('lyricsInput').value.trim());
-    document.getElementById('lyricsInput').addEventListener('keydown', e => {
-      if (e.key === 'Enter') findLyrics(e.target.value.trim());
-    });
 
-    document.getElementById('musicPreset').addEventListener('change', (e) => {
+    /* ---- One search bar for everything: a source switch (YouTube /
+       Archive / Lyrics) decides which lookup runs and which results pane is
+       shown. Each pane keeps its own results, so flipping tabs doesn't lose
+       anything, and "Minimize" tucks the results away to save space. ---- */
+    const SEARCH_MODES = {
+      youtube: { placeholder: 'Search YouTube for a song or artist…', hint: "Videos play using YouTube's embedded player.", run: searchYouTube },
+      archive: { placeholder: 'Search royalty-free songs or artists…', hint: 'Streams full royalty-free tracks from Internet Archive.', run: runSearch },
+      lyrics: { placeholder: 'Enter a song title or artist…', hint: 'Find lyrics for a song (via LRCLIB).', run: findLyrics }
+    };
+    let searchMode = 'youtube';
+    let hasSearched = false;
+    const usInput = document.getElementById('unifiedInput');
+    const usBody = document.getElementById('usBody');
+    const usCollapseBtn = document.getElementById('usCollapseBtn');
+    const usPreset = document.getElementById('musicPreset');
+
+    function setSearchMode(mode) {
+      searchMode = mode;
+      document.querySelectorAll('.us-tab').forEach(tab => {
+        const on = tab.dataset.mode === mode;
+        tab.classList.toggle('active', on);
+        tab.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      document.querySelectorAll('.us-pane').forEach(pane => { pane.hidden = pane.dataset.pane !== mode; });
+      usInput.placeholder = SEARCH_MODES[mode].placeholder;
+      document.getElementById('usHint').textContent = SEARCH_MODES[mode].hint;
+      usPreset.hidden = mode !== 'archive';
+      setSearchCollapsed(false);
+    }
+    function setSearchCollapsed(collapsed) {
+      usBody.hidden = collapsed;
+      usCollapseBtn.textContent = collapsed ? 'Show results ▼' : 'Minimize ▲';
+      usCollapseBtn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    }
+    function runUnifiedSearch(term = usInput.value.trim()) {
+      hasSearched = true;
+      usCollapseBtn.hidden = false;
+      setSearchCollapsed(false);
+      SEARCH_MODES[searchMode].run(term);
+    }
+    document.querySelectorAll('.us-tab').forEach(tab => { tab.onclick = () => setSearchMode(tab.dataset.mode); });
+    usCollapseBtn.onclick = () => setSearchCollapsed(!usBody.hidden);
+    document.getElementById('unifiedSearchBtn').onclick = () => runUnifiedSearch();
+    usInput.addEventListener('keydown', e => { if (e.key === 'Enter') runUnifiedSearch(); });
+    usPreset.addEventListener('change', (e) => {
       const term = e.target.value.trim();
-      if (!term) {
-        document.getElementById('searchInput').value = '';
-        document.getElementById('results').innerHTML = '';
-        return;
-      }
-      document.getElementById('searchInput').value = term;
-      runSearch(term);
+      if (!term) { usInput.value = ''; document.getElementById('results').innerHTML = ''; return; }
+      usInput.value = term;
+      runUnifiedSearch(term);
     });
 
     const params = new URLSearchParams(location.search);
     if (params.get('q')) {
-      document.getElementById('searchInput').value = params.get('q');
-      runSearch(params.get('q'));
+      setSearchMode('archive');
+      usInput.value = params.get('q');
+      runUnifiedSearch(params.get('q'));
     }
 
     // Rebuild the embedded YouTube iframe if a YouTube track was already

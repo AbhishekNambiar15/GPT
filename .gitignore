@@ -1,4 +1,29 @@
+# Environment & Secrets
 .env
+.env.*
+!.env.example
+
+# Local API Usage Tracking & Cache Files
+api_usage.json
+api_usage.json.tmp
+*.cache
+
+# Python Virtual Environments
 .venv/
+venv/
+env/
+ENV/
+
+# Python Bytecode & Cache
 __pycache__/
 *.py[cod]
+*$py.class
+*.pyd
+
+# Operating System & IDE Artifacts
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo

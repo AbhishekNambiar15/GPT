@@ -49,6 +49,15 @@
             opacity: 1;
             z-index: 1;
         }
+
+        /* Index page only: the music frame is shrunk and floated over the
+           video slot in the Chat page's music card (same single player, so
+           audio never restarts). Positioned/clipped via inline styles. */
+        .frame-slot {
+            opacity: 1;
+            z-index: 3;
+            border-radius: 10px;
+        }
     </style>
 </head>
 
@@ -60,7 +69,40 @@
         const musicFrame = document.getElementById('musicFrame');
         const allowedPages = new Set(['index.html', 'memory.html', 'modes.html', 'tools.html', 'settings.html', 'welcome.html']);
 
+        let currentPage = 'index.html';
+
+        function clearSlot() {
+            if (!musicFrame.classList.contains('frame-slot')) return;
+            musicFrame.removeAttribute('style');
+            musicFrame.classList.remove('frame-slot');
+            musicFrame.classList.add('frame-hidden');
+            musicFrame.contentWindow.postMessage({ type: 'video-slot-mode', on: false }, location.origin);
+        }
+
+        function applySlot(slot) {
+            if (currentPage !== 'index.html' || !slot || !slot.visible) { clearSlot(); return; }
+            const r = slot.rect, c = slot.clip;
+            musicFrame.classList.remove('frame-hidden', 'frame-visible');
+            musicFrame.classList.add('frame-slot');
+            Object.assign(musicFrame.style, {
+                inset: 'auto',
+                left: r.left + 'px', top: r.top + 'px',
+                width: r.width + 'px', height: r.height + 'px',
+                clipPath: `inset(${c.top}px ${c.right}px ${c.bottom}px ${c.left}px round 10px)`
+            });
+            musicFrame.contentWindow.postMessage({ type: 'video-slot-mode', on: true }, location.origin);
+        }
+
+        // If the music page finishes loading after a slot was already applied
+        // (e.g. a refresh while a video is playing), re-send the mode to it.
+        musicFrame.addEventListener('load', () => {
+            musicFrame.contentWindow.postMessage(
+                { type: 'video-slot-mode', on: musicFrame.classList.contains('frame-slot') }, location.origin);
+        });
+
         function showPage(page) {
+            if (allowedPages.has(page) || page === 'music.html') currentPage = page;
+            clearSlot();
             if (page === 'music.html') {
                 contentFrame.classList.remove('frame-visible');
                 contentFrame.classList.add('frame-hidden');
@@ -73,7 +115,11 @@
             musicFrame.classList.add('frame-hidden');
             contentFrame.classList.remove('frame-hidden');
             contentFrame.classList.add('frame-visible');
-            if (contentFrame.contentWindow.location.pathname.endsWith('/' + page)) return;
+            if (contentFrame.contentWindow.location.pathname.endsWith('/' + page)) {
+                // Already loaded: ask the Chat page to re-report its video slot.
+                if (page === 'index.html') contentFrame.contentWindow.postMessage({ type: 'video-slot-request' }, location.origin);
+                return;
+            }
             contentFrame.src = page;
         }
 
@@ -86,6 +132,9 @@
             }
             if (event.data.type === 'player-state') {
                 contentFrame.contentWindow.postMessage(event.data, location.origin);
+            }
+            if (event.data.type === 'video-slot' && event.source === contentFrame.contentWindow) {
+                applySlot(event.data);
             }
         });
     </script>

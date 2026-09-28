@@ -344,7 +344,32 @@
       gap: 16px;
     }
 
-    #right>.card:first-child {
+    /* Laptop layout only (right panel visible): the music card lives in
+       the right column permanently, so the popup dock + its toggle are
+       hidden here. Narrower screens hide #right, so they keep the dock. */
+    @media (min-width: 1101px) {
+      #miniRightDock,
+      #miniRightDockToggle {
+        display: none !important;
+      }
+    }
+
+    /* Video slot: the shell floats the (single) YouTube player frame over
+       this box when a YouTube track is playing. */
+    .np-video {
+      display: none;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      border-radius: 10px;
+      background: #000;
+      margin-bottom: 10px;
+    }
+
+    .mini-bar.has-video .np-video {
+      display: block;
+    }
+
+    .mini-bar.has-video .np-art {
       display: none;
     }
 
@@ -654,6 +679,7 @@
         <h3>Music <a class="link" href="music.html">Open player</a></h3>
         <div class="mini-bar empty" id="miniPlayerBar">
           <div class="np-art" id="miniArt"></div>
+          <div class="np-video" id="npVideoSlot"></div>
           <div class="np-title" id="miniTitle">Nothing playing</div>
           <div class="np-sub" id="miniArtist">Go to Music to search a song</div>
           <div class="np-controls"><button id="miniPlayBtn" disabled>▶</button></div>
@@ -677,6 +703,16 @@
       <div class="card">
         <h3>Memory <a class="link" href="memory.html">View all</a></h3>
         <div id="memoryList"></div>
+      </div>
+      <div class="card" id="apiUsageCard">
+        <h3>API Usage <span id="overallUsageStatus" class="usage-badge normal">Normal</span></h3>
+        <div id="usageContent" class="usage-card">
+          <div class="empty">Loading usage…</div>
+        </div>
+        <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;font-size:10.5px;color:var(--dim2);">
+          <span>Resets daily</span>
+          <span id="refreshUsageBtn" style="color:var(--purple);cursor:pointer;font-weight:600;">↻ Refresh</span>
+        </div>
       </div>
     </div>
   </div>
@@ -752,10 +788,15 @@
         if (m) addMemory(p.icon, p.fmt(m).replace(/^./, c => c.toUpperCase()));
       }
     }
+    let isChatInFlight = false;
     async function send() {
+      if (isChatInFlight) return;
       const p = document.getElementById('prompt');
+      const sendBtn = document.getElementById('send');
       const val = p.value.trim();
       if (!val) return;
+      isChatInFlight = true;
+      sendBtn.disabled = true;
       const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       const urow = document.createElement('div');
       urow.className = 'msg user';
@@ -791,7 +832,12 @@
           try { data = JSON.parse(responseText); }
           catch (parseError) { data = { error: responseText }; }
         }
-        if (!response.ok) throw new Error(data.error || `The AI service returned HTTP ${response.status}.`);
+        if (!response.ok) {
+          if (data && data.error === 'API usage limit reached') {
+            throw new Error(`Daily limit reached for Gemini (${data.used}/${data.limit} used). Further requests are paused until the quota resets.`);
+          }
+          throw new Error(data.error || `The AI service returned HTTP ${response.status}.`);
+        }
         if (!data.reply) throw new Error('The AI service returned no reply.');
         const reply = esc(data.reply).replace(/\n/g, '<br>');
         chatHistory.push({ role: 'bot', text: data.reply });
@@ -801,9 +847,12 @@
         const message = `I couldn't reach the AI service. ${esc(error.message)}`;
         thinking.querySelector('.bubble').innerHTML = message;
       } finally {
+        isChatInFlight = false;
+        sendBtn.disabled = false;
         p.disabled = false;
         p.focus();
         log.scrollTop = log.scrollHeight;
+        loadApiUsage();
       }
     }
     document.getElementById('send').onclick = send;
@@ -820,6 +869,131 @@
     document.getElementById('previousTrack').onclick = () => window.MiniGPTPlayer.previous();
     document.getElementById('nextTrack').onclick = () => window.MiniGPTPlayer.next();
     document.getElementById('autoPlayTrack').onclick = () => window.MiniGPTPlayer.toggleAutoPlay();
+
+    /* ---------- music card (right panel): play icon + inline video ---------- */
+    const laptopQuery = window.matchMedia('(min-width: 1101px)');
+    const rightPanel = document.getElementById('right');
+    const miniBar = document.getElementById('miniPlayerBar');
+    const videoSlot = document.getElementById('npVideoSlot');
+    const miniPlay = document.getElementById('miniPlayBtn');
+
+    function currentMusicState() {
+      return (window.MiniGPTPlayer && window.MiniGPTPlayer.getState()) || {};
+    }
+    function syncMusicCard(state) {
+      state = state || currentMusicState();
+      miniPlay.textContent = state.playing ? '\u275A\u275A' : '\u25B6';
+      const wantsVideo = laptopQuery.matches && state.provider === 'youtube' && Boolean(state.videoId);
+      miniBar.classList.toggle('has-video', wantsVideo);
+      reportVideoSlot(wantsVideo);
+    }
+
+    /* Tell the shell where to float the player frame (and how much of it is
+       actually visible inside the scrolling right panel). */
+    function reportVideoSlot(wantsVideo) {
+      if (window.parent === window) return;
+      let msg = { type: 'video-slot', visible: false };
+      if (wantsVideo) {
+        const r = videoSlot.getBoundingClientRect();
+        const c = rightPanel.getBoundingClientRect();
+        const vis = {
+          left: Math.max(r.left, c.left), top: Math.max(r.top, c.top),
+          right: Math.min(r.right, c.right), bottom: Math.min(r.bottom, c.bottom)
+        };
+        if (r.width > 40 && vis.right - vis.left > 40 && vis.bottom - vis.top > 20) {
+          msg = {
+            type: 'video-slot', visible: true,
+            rect: { left: r.left, top: r.top, width: r.width, height: r.height },
+            clip: { top: vis.top - r.top, right: r.right - vis.right, bottom: r.bottom - vis.bottom, left: vis.left - r.left }
+          };
+        }
+      }
+      window.parent.postMessage(msg, window.location.origin);
+    }
+    function refreshVideoSlot() { reportVideoSlot(miniBar.classList.contains('has-video')); }
+
+    window.addEventListener('message', e => {
+      if (e.origin !== window.location.origin || !e.data) return;
+      if (e.data.type === 'player-state') syncMusicCard(e.data.state);
+      if (e.data.type === 'video-slot-request') syncMusicCard();
+    });
+    rightPanel.addEventListener('scroll', refreshVideoSlot);
+    window.addEventListener('resize', () => syncMusicCard());
+    document.addEventListener('DOMContentLoaded', () => {
+      syncMusicCard();
+      loadApiUsage();
+    });
+    syncMusicCard();
+
+    /* ---------- API Usage Tracker ---------- */
+    async function loadApiUsage() {
+      try {
+        const res = await fetch('/api/usage');
+        if (!res.ok) return;
+        const data = await res.json();
+        renderApiUsage(data);
+      } catch (err) {
+        // network issue
+      }
+    }
+
+    function renderApiUsage(data) {
+      const container = document.getElementById('usageContent');
+      if (!container || !data) return;
+
+      const services = [
+        { key: 'gemini', label: 'Gemini' },
+        { key: 'youtube', label: 'YouTube' }
+      ];
+
+      let worstStatus = 'normal';
+      const statusRank = { normal: 0, warning: 1, critical: 2, exhausted: 3 };
+
+      let html = '';
+      services.forEach(svc => {
+        const info = data[svc.key] || { used: 0, limit: 1000, remaining: 1000, percentage: 0, status: 'normal' };
+        const status = info.status || 'normal';
+        if ((statusRank[status] || 0) > (statusRank[worstStatus] || 0)) {
+          worstStatus = status;
+        }
+
+        const pct = Math.min(100, Math.max(0, info.percentage || 0));
+        html += `
+          <div class="usage-row">
+            <div class="usage-row-head">
+              <span>${svc.label}</span>
+              <span class="usage-counts">${info.used} / ${info.limit}</span>
+            </div>
+            <div class="usage-bar-track">
+              <div class="usage-bar-fill ${status}" style="width: ${pct}%"></div>
+            </div>
+            <div class="usage-sub">
+              <span>Remaining: ${info.remaining}</span>
+              <span>${pct.toFixed(1)}%</span>
+            </div>
+            ${status === 'warning' ? '<div class="usage-alert warning">⚠️ Approaching daily limit</div>' : ''}
+            ${status === 'critical' ? '<div class="usage-alert critical">⚠️ High usage: limit nearly reached</div>' : ''}
+            ${status === 'exhausted' ? '<div class="usage-alert exhausted">⛔ Daily limit reached. Calls paused.</div>' : ''}
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+
+      const badge = document.getElementById('overallUsageStatus');
+      if (badge) {
+        badge.className = `usage-badge ${worstStatus}`;
+        badge.textContent = worstStatus === 'normal' ? 'Normal' :
+                            worstStatus === 'warning' ? 'Warning' :
+                            worstStatus === 'critical' ? 'High Usage' : 'Limit Reached';
+      }
+    }
+
+    const refreshBtn = document.getElementById('refreshUsageBtn');
+    if (refreshBtn) refreshBtn.onclick = () => loadApiUsage();
+
+    loadApiUsage();
+    setInterval(loadApiUsage, 30000);
   </script>
 </body>
 

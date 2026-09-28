@@ -431,7 +431,14 @@
   function playNext(track) {
     const state = getState() || {};
     state.upNext = state.upNext || [];
-    state.upNext.unshift(normalizeQueueTrack(track));
+    /* FIFO: "Play Next" songs go ahead of normal "+ Queue" songs, but stay
+       in the order they were added among themselves (a plain unshift would
+       reverse them, i.e. behave like a stack). */
+    const entry = normalizeQueueTrack(track);
+    entry.priority = true;
+    let insertAt = 0;
+    while (insertAt < state.upNext.length && state.upNext[insertAt].priority) insertAt++;
+    state.upNext.splice(insertAt, 0, entry);
     setState(state);
     addActivity('⏭', `"${track.title}" will play next`);
     emitQueueChanged();

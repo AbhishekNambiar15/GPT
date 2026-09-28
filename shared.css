@@ -233,3 +233,124 @@ nav a:hover:not(.active) {
         width: 100%;
     }
 }
+
+/* ---- API Usage UI ---- */
+.usage-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.usage-row {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.usage-row-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12.5px;
+    font-weight: 600;
+}
+
+.usage-counts {
+    font-size: 11.5px;
+    color: var(--dim);
+    font-family: monospace;
+}
+
+.usage-bar-track {
+    height: 6px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+}
+
+.usage-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.3s ease, background-color 0.3s ease;
+    background: var(--purple);
+}
+
+.usage-bar-fill.normal {
+    background: var(--purple);
+}
+
+.usage-bar-fill.warning {
+    background: #f59e0b;
+}
+
+.usage-bar-fill.critical {
+    background: #f97316;
+}
+
+.usage-bar-fill.exhausted {
+    background: var(--red);
+}
+
+.usage-sub {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10.5px;
+    color: var(--dim2);
+}
+
+.usage-badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.usage-badge.normal {
+    background: rgba(34, 197, 94, 0.15);
+    color: var(--green);
+}
+
+.usage-badge.warning {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+}
+
+.usage-badge.critical {
+    background: rgba(249, 115, 22, 0.15);
+    color: #f97316;
+}
+
+.usage-badge.exhausted {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--red);
+}
+
+.usage-alert {
+    font-size: 11px;
+    padding: 5px 9px;
+    border-radius: 7px;
+    line-height: 1.4;
+    margin-top: 4px;
+}
+
+.usage-alert.warning {
+    background: rgba(245, 158, 11, 0.1);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.usage-alert.critical {
+    background: rgba(249, 115, 22, 0.1);
+    color: #fb923c;
+    border: 1px solid rgba(249, 115, 22, 0.25);
+}
+
+.usage-alert.exhausted {
+    background: rgba(239, 68, 68, 0.1);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.25);
+}
