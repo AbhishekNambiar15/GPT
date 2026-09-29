@@ -233,8 +233,9 @@ def youtube_search():
         "part": "snippet",
         "q": query,
         "type": "video",
+        "videoCategoryId": "10",  # Restrict to YouTube Music category
         "videoEmbeddable": "true",
-        "maxResults": 12,
+        "maxResults": 15,
     })
     # Secure transmission: Send API key in X-Goog-Api-Key HTTP header
     http_request = Request(
@@ -268,11 +269,14 @@ def youtube_search():
         snippet = item.get("snippet") or {}
         if not video_id or not is_valid_video_id(video_id):
             continue
+        title = snippet.get("title", "Untitled video")
+        if _is_non_music_title(title):
+            continue
         thumbnails = snippet.get("thumbnails") or {}
         thumbnail = (thumbnails.get("medium") or thumbnails.get("default") or {}).get("url", "")
         videos.append({
             "videoId": video_id,
-            "title": snippet.get("title", "Untitled video"),
+            "title": title,
             "channelTitle": snippet.get("channelTitle", "YouTube"),
             "thumbnail": thumbnail,
         })
@@ -285,6 +289,32 @@ _TITLE_JUNK_RE = re.compile(
     r"lyric\s*video|audio|video|hd|hq|4k|remaster(ed)?|live|explicit|clean|"
     r"visualizer|full\s*version|mv)\b"
 )
+
+# Comprehensive filter for podcasts, interviews, reviews, reactions, vlogs, and non-music content
+_NON_MUSIC_RE = re.compile(
+    r"\b("
+    r"podcast|full\s*podcast|"
+    r"interview|full\s*interview|"
+    r"episode\s*\d+|ep\s*\.?\s*\d+|full\s*episode|"
+    r"reacts?|reacting|reaction\s*video|"
+    r"album\s*review|song\s*review|track\s*review|music\s*review|"
+    r"documentary|docuseries|"
+    r"behind\s*the\s*scenes|making\s*of|"
+    r"speaks\s*on|talks\s*about|"
+    r"q&a|vlog|daily\s*vlog|"
+    r"livestream|live\s*stream|stream\s*highlight|"
+    r"tutorial|how\s*to\s*play|guitar\s*lesson|piano\s*lesson|drum\s*lesson|"
+    r"unboxing|parody|audiobook"
+    r")\b",
+    re.IGNORECASE,
+)
+
+
+def _is_non_music_title(title: str) -> bool:
+    """Detect if a title belongs to a podcast, interview, reaction, or non-song video."""
+    if not title:
+        return False
+    return bool(_NON_MUSIC_RE.search(title))
 
 
 def _normalize_song_title(title: str) -> str:
@@ -339,14 +369,17 @@ def _youtube_get(url: str, api_key: str, endpoint: str = "api", ttl: int = 3600)
         return None, (jsonify({"error": f"Could not reach YouTube: {redact_secrets(str(error))}"}), 502)
 
 
-def _youtube_search_videos(api_key: str, query: str, max_results: int = 10):
-    params = urlencode({
+def _youtube_search_videos(api_key: str, query: str, max_results: int = 10, category_music: bool = True):
+    search_params = {
         "part": "snippet",
         "q": query,
         "type": "video",
         "videoEmbeddable": "true",
         "maxResults": max_results,
-    })
+    }
+    if category_music:
+        search_params["videoCategoryId"] = "10"  # Music category
+    params = urlencode(search_params)
     data, error = _youtube_get(
         f"https://www.googleapis.com/youtube/v3/search?{params}",
         api_key=api_key,
@@ -361,11 +394,14 @@ def _youtube_search_videos(api_key: str, query: str, max_results: int = 10):
         snippet = item.get("snippet") or {}
         if not video_id or not is_valid_video_id(video_id):
             continue
+        title = snippet.get("title", "Untitled video")
+        if _is_non_music_title(title):
+            continue
         thumbnails = snippet.get("thumbnails") or {}
         thumbnail = (thumbnails.get("medium") or thumbnails.get("default") or {}).get("url", "")
         videos.append({
             "videoId": video_id,
-            "title": snippet.get("title", "Untitled video"),
+            "title": title,
             "channelTitle": snippet.get("channelTitle", "YouTube"),
             "thumbnail": thumbnail,
         })
@@ -406,7 +442,7 @@ def youtube_related():
     for t in request.args.get("excludeTitles", "").split("|")[:50]:
         cleaned_title = sanitize_text(t, max_length=200)
         if cleaned_title:
-            exclude_titles.add(cleaned_title)
+            exclude_titles.add(_normalize_song_title(cleaned_title))
 
     candidate_cache_key = f"yt_related_candidates:{video_id}"
     candidates = api_cache.get(candidate_cache_key)
@@ -430,14 +466,16 @@ def youtube_related():
         exclude_titles.add(_normalize_song_title(title))
 
         queries = []
+        clean_title = re.sub(r"[^\w\s]", " ", title).strip()
+        title_words = [w for w in clean_title.split() if len(w) > 2]
+        if title_words and channel_title:
+            queries.append(f"{' '.join(title_words[:4])} {channel_title}")
+        elif title_words:
+            queries.append(f"{' '.join(title_words[:5])} song")
         if channel_title:
-            queries.append(channel_title)
+            queries.append(f"{channel_title} music")
         if tags:
             queries.append(" ".join(tags[:4]))
-        if title:
-            words = [w for w in re.sub(r"[^\w\s]", " ", title).split() if len(w) > 2]
-            if words:
-                queries.append(" ".join(words[:6]))
         if not queries:
             queries.append("popular music")
 
@@ -470,6 +508,8 @@ def youtube_related():
     def keep(video, avoid_duplicate_titles):
         if video["videoId"] in exclude_ids:
             return False
+        if _is_non_music_title(video.get("title", "")):
+            return False
         if avoid_duplicate_titles and _normalize_song_title(video["title"]) in exclude_titles:
             return False
         return True
@@ -477,6 +517,11 @@ def youtube_related():
     filtered = [v for v in candidates if keep(v, avoid_duplicate_titles=True)]
     if not filtered:
         filtered = [v for v in candidates if keep(v, avoid_duplicate_titles=False)]
+
+    if not filtered:
+        fallback_query = f"{fallback_channel or fallback_title or 'trending'} song audio"
+        fallback_vids, _ = _youtube_search_videos(api_key, fallback_query, max_results=10)
+        filtered = [v for v in fallback_vids if v["videoId"] not in exclude_ids and not _is_non_music_title(v.get("title", ""))]
 
     return jsonify({"videos": filtered[:8]})
 

@@ -43,6 +43,12 @@
     t = t.replace(/\s+/g, ' ').trim();
     return t;
   }
+  const NON_MUSIC_REGEX = /\b(podcast|full\s*podcast|interview|full\s*interview|episode\s*\d+|ep\s*\.?\s*\d+|full\s*episode|reacts?|reacting|reaction\s*video|album\s*review|song\s*review|track\s*review|music\s*review|documentary|docuseries|behind\s*the\s*scenes|making\s*of|speaks\s*on|talks\s*about|q&a|vlog|daily\s*vlog|livestream|live\s*stream|stream\s*highlight|tutorial|how\s*to\s*play|guitar\s*lesson|piano\s*lesson|drum\s*lesson|unboxing|parody|audiobook)\b/i;
+
+  function isNonMusicTrack(title) {
+    if (!title) return false;
+    return NON_MUSIC_REGEX.test(title);
+  }
   function emitQueueChanged() {
     document.dispatchEvent(new CustomEvent('mg-queue-updated'));
   }
@@ -51,18 +57,20 @@
     if (track.provider === 'youtube' || track.videoId) {
       return {
         videoId: track.videoId,
-        title: track.title,
+        title: track.title || 'Untitled',
         artist: track.channelTitle || track.artist || 'YouTube',
         artwork: track.thumbnail || track.artwork || '',
-        provider: 'youtube'
+        provider: 'youtube',
+        duration: Number(track.duration) || 0
       };
     }
     return {
-      preview: track.preview,
-      title: track.title,
+      preview: track.preview || '',
+      title: track.title || 'Untitled',
       artist: track.artist || 'Internet Archive',
       artwork: track.artwork || '',
-      provider: 'archive'
+      provider: 'archive',
+      duration: Number(track.duration) || 0
     };
   }
 
@@ -219,18 +227,21 @@
     }
     if (els.audio.src) els.audio.pause();
     const s = {
-      title: track.title,
-      artist: track.artist,
-      artwork: track.artwork,
+      ...previous,
+      title: track.title || 'Untitled',
+      artist: track.artist || 'Internet Archive',
+      artwork: track.artwork || '',
       preview: track.preview,
       provider: 'archive',
+      videoId: '',
       time: 0,
-      duration: 0,
+      duration: Number(track.duration) || 0,
       playing: true,
       autoPlay: Boolean(previous.autoPlay),
       upNext: previous.upNext || [],
       history: previous.history || [],
-      historyIndex: Number.isInteger(previous.historyIndex) ? previous.historyIndex : -1
+      historyIndex: Number.isInteger(previous.historyIndex) ? previous.historyIndex : -1,
+      sessionPlayedIds: previous.sessionPlayedIds || []
     };
     setState(s);
     paintFromState(s);
@@ -250,19 +261,21 @@
     const previous = getState() || {};
     if (els && els.audio && !els.audio.paused) els.audio.pause();
     const state = {
-      title: track.title,
+      ...previous,
+      title: track.title || 'Untitled video',
       artist: track.channelTitle || track.artist || 'YouTube',
       artwork: track.thumbnail || track.artwork || '',
       preview: '',
       provider: 'youtube',
       videoId: track.videoId,
       time: 0,
-      duration: 0,
+      duration: Number(track.duration) || 0,
       playing: true,
       autoPlay: Boolean(previous.autoPlay),
       upNext: previous.upNext || [],
       history: previous.history || [],
-      historyIndex: Number.isInteger(previous.historyIndex) ? previous.historyIndex : -1
+      historyIndex: Number.isInteger(previous.historyIndex) ? previous.historyIndex : -1,
+      sessionPlayedIds: previous.sessionPlayedIds || []
     };
     setState(state);
     paintFromState(state);
@@ -292,50 +305,63 @@
   }
 
   /* Once a track's real duration is known, stamp it onto its history entry
-     too (history is pushed the instant playback starts, before duration is
-     available) so features like Recently Played can show track length. */
+     too so features like Recently Played can show track length accurately. */
   function recordCurrentDuration(state) {
-    if (!state.duration) return;
+    if (!state || !state.duration) return;
     const history = state.history || [];
     const idx = state.historyIndex;
-    const entry = Number.isInteger(idx) ? history[idx] : null;
-    if (entry && !entry.duration) entry.duration = state.duration;
+    const entry = Number.isInteger(idx) && idx >= 0 && idx < history.length ? history[idx] : null;
+    if (entry && (!entry.duration || Math.abs(entry.duration - state.duration) > 1)) {
+      entry.duration = state.duration;
+      if (!entry.artwork && state.artwork) entry.artwork = state.artwork;
+      if ((!entry.artist || entry.artist === 'YouTube') && state.artist) entry.artist = state.artist;
+      setState(state);
+      emitQueueChanged();
+    }
   }
 
-  /* ---- Playback history: the single source of truth for Previous/Next ----
-     Search results never populate this. Only "genuinely new" plays do:
-     a search-result click, a queued song being played, or an autoplay
-     recommendation. Moving through EXISTING history (Previous, or Next
-     when there's a forward branch) only moves historyIndex; it never
-     rewrites the array or creates duplicate entries. */
-  const MAX_HISTORY = 50;
+  /* ---- Playback history: strictly the latest 4 songs played (FIFO queue) ----
+     Only genuine new plays (clicks from search results, queue items, or autoplay
+     recommendations) push to history. Moving with Previous/Next only shifts the
+     historyIndex pointer. When a 5th song is added, the oldest is discarded. */
+  const MAX_HISTORY = 4;
   function pushHistory(track) {
     const state = getState() || {};
     const entry = normalizeQueueTrack(track);
     entry.normTitle = normalizeTitle(entry.title);
-    let history = state.history || [];
-    let idx = Number.isInteger(state.historyIndex) ? state.historyIndex : -1;
-    // Branching to a new song drops any stale "forward" history from an
-    // earlier Previous press, same as a browser history stack.
-    history = history.slice(0, idx + 1);
-    history.push(entry);
-    idx = history.length - 1;
-    if (history.length > MAX_HISTORY) {
-      const drop = history.length - MAX_HISTORY;
-      history = history.slice(drop);
-      idx -= drop;
+    if (!entry.duration && state.duration && (state.videoId === entry.videoId || state.preview === entry.preview)) {
+      entry.duration = state.duration;
     }
+    let history = state.history || [];
+
+    const lastEntry = history.length ? history[history.length - 1] : null;
+    const isSameTrack = lastEntry && (
+      (entry.provider === 'youtube' && entry.videoId && lastEntry.videoId === entry.videoId) ||
+      (entry.provider === 'archive' && entry.preview && lastEntry.preview === entry.preview)
+    );
+
+    if (isSameTrack) {
+      if (!lastEntry.duration && entry.duration) lastEntry.duration = entry.duration;
+      if (!lastEntry.artwork && entry.artwork) lastEntry.artwork = entry.artwork;
+      state.historyIndex = history.length - 1;
+    } else {
+      history.push(entry);
+      // FIFO queue behavior: keep only latest 4 songs, discard oldest from front
+      while (history.length > MAX_HISTORY) {
+        history.shift();
+      }
+      state.historyIndex = history.length - 1;
+    }
+
     state.history = history;
-    state.historyIndex = idx;
     setState(state);
+    emitQueueChanged();
   }
 
-  /* "Play this as a brand-new song": physically plays it AND records it in
-     history. Used for search-result clicks, queue items, and recommendations —
-     never for Previous/Next navigation through existing history. */
+  /* "Play this as a brand-new song": records in 4-song history queue AND physically plays it. */
   function playNewTrack(track) {
-    physicallyPlay(track);
     pushHistory(track);
+    physicallyPlay(track);
     emitQueueChanged();
   }
 
@@ -349,25 +375,24 @@
     playNewTrack({ ...track, provider: 'youtube' });
   }
 
-  /* ---- Public: Previous / Next, both backed by the same history stack ---- */
+  /* ---- Public: Previous / Next, backed by the 4-song history stack ---- */
   function previousTrack() {
     if (!isMusicOwner) { sendCommand({ type: 'previous' }); return; }
     const state = getState() || {};
     const history = state.history || [];
-    const idx = Number.isInteger(state.historyIndex) ? state.historyIndex : -1;
-    if (idx <= 0 || idx - 1 >= history.length) return;
-    const track = history[idx - 1];
-    const s = getState() || {};
-    s.historyIndex = idx - 1;
-    setState(s);
+    let idx = Number.isInteger(state.historyIndex) ? state.historyIndex : history.length - 1;
+    if (idx <= 0 || idx > history.length - 1) return;
+    const targetIdx = idx - 1;
+    const track = history[targetIdx];
+    state.historyIndex = targetIdx;
+    setState(state);
     physicallyPlay(track);
     emitQueueChanged();
   }
 
   /* Central playback controller used by BOTH the manual Next button and a
-     song ending naturally (see handleCommand's 'next' and the 'ended'
-     listeners below) — there is only one decision path, per:
-       1. resume forward history (e.g. right after pressing Previous)
+     song ending naturally:
+       1. step forward through recent history (e.g. right after pressing Previous)
        2. otherwise, play whatever is at the front of the manual queue
        3. otherwise, if Autoplay is on, ask for a recommendation
        4. otherwise, stop */
@@ -375,11 +400,11 @@
     const state = getState() || {};
     const history = state.history || [];
     const idx = Number.isInteger(state.historyIndex) ? state.historyIndex : -1;
-    if (idx < history.length - 1) {
-      const track = history[idx + 1];
-      const s = getState() || {};
-      s.historyIndex = idx + 1;
-      setState(s);
+    if (idx >= 0 && idx < history.length - 1) {
+      const targetIdx = idx + 1;
+      const track = history[targetIdx];
+      state.historyIndex = targetIdx;
+      setState(state);
       physicallyPlay(track);
       emitQueueChanged();
       return;
@@ -481,10 +506,8 @@
   }
 
   /* ---- What plays when Autoplay needs to pick something related ----
-     Only meaningful for YouTube-sourced tracks (the backend's /related
-     endpoint). Excludes everything already in this session's playback
-     history so autoplay favors variety over other uploads/versions of the
-     same song. */
+     Only meaningful for YouTube-sourced tracks (the backend's /related endpoint).
+     Excludes everything played in this session so autoplay never repeats recent songs. */
   let recommendationInFlight = false;
   async function playAutoplayRecommendation() {
     if (recommendationInFlight) return;
@@ -500,15 +523,34 @@
     recommendationInFlight = true;
     document.dispatchEvent(new CustomEvent('mg-recommendation-loading'));
     try {
-      const recent = (state.history || []).slice(-20);
-      const excludeIds = recent.filter(r => r.provider === 'youtube' && r.videoId).map(r => r.videoId);
-      const excludeTitles = recent.map(r => r.normTitle).filter(Boolean);
+      let sessionPlayed = state.sessionPlayedIds || [];
+      if (!sessionPlayed.includes(state.videoId)) {
+        sessionPlayed = [...sessionPlayed, state.videoId];
+      }
+      const historyList = state.history || [];
+      const upNextList = state.upNext || [];
+
+      const allSeenIds = new Set([
+        ...sessionPlayed,
+        ...historyList.filter(r => r.provider === 'youtube' && r.videoId).map(r => r.videoId),
+        ...upNextList.filter(r => r.provider === 'youtube' && r.videoId).map(r => r.videoId),
+        state.videoId
+      ]);
+      const allSeenTitles = new Set([
+        ...historyList.map(r => r.normTitle || normalizeTitle(r.title)).filter(Boolean),
+        ...upNextList.map(r => r.normTitle || normalizeTitle(r.title)).filter(Boolean),
+        normalizeTitle(state.title)
+      ]);
+
+      const excludeIdsArr = Array.from(allSeenIds).slice(-30);
+      const excludeTitlesArr = Array.from(allSeenTitles).slice(-30);
+
       const params = new URLSearchParams({
         videoId: state.videoId,
         title: state.title || '',
         channelTitle: state.artist || '',
-        excludeIds: excludeIds.join(','),
-        excludeTitles: excludeTitles.join('|')
+        excludeIds: excludeIdsArr.join(','),
+        excludeTitles: excludeTitlesArr.join('|')
       });
       const response = await fetch(`/api/youtube/related?${params.toString()}`);
       const data = await response.json().catch(() => ({}));
@@ -521,7 +563,35 @@
         document.dispatchEvent(new CustomEvent('mg-recommendation-empty', { detail: (data && data.error) || null }));
         return;
       }
-      const next = { ...data.videos[0], provider: 'youtube' };
+
+      // Pick the first candidate that hasn't been played in this session
+      let chosen = null;
+      for (const vid of data.videos) {
+        if (!vid || !vid.videoId) continue;
+        if (isNonMusicTrack(vid.title)) continue;
+        if (allSeenIds.has(vid.videoId)) continue;
+        const norm = normalizeTitle(vid.title);
+        if (norm && allSeenTitles.has(norm)) continue;
+        chosen = vid;
+        break;
+      }
+      if (!chosen) {
+        chosen = data.videos.find(v => v && v.videoId && !allSeenIds.has(v.videoId) && !isNonMusicTrack(v.title));
+      }
+      if (!chosen) {
+        chosen = data.videos.find(v => v && v.videoId && v.videoId !== state.videoId && !isNonMusicTrack(v.title));
+      }
+      if (!chosen) {
+        chosen = data.videos.find(v => v && v.videoId && !allSeenIds.has(v.videoId)) || data.videos[0];
+      }
+
+      sessionPlayed.push(chosen.videoId);
+      if (sessionPlayed.length > 50) sessionPlayed = sessionPlayed.slice(-50);
+      const curState = getState() || {};
+      curState.sessionPlayedIds = sessionPlayed;
+      setState(curState);
+
+      const next = { ...chosen, provider: 'youtube' };
       playNewTrack(next);
       addActivity('🔁', `Autoplay picked "${next.title}"`);
     } catch (e) {
@@ -915,6 +985,7 @@
     removeFromQueue,
     moveQueueItem,
     clearQueue,
-    playQueueItem
+    playQueueItem,
+    isNonMusicTrack
   };
 })();

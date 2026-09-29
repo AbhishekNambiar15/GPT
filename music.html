@@ -963,6 +963,169 @@
     .lyrics-fallback-links a:hover {
       border-color: var(--purple);
     }
+
+    /* ---- Music Filter Bar, Suggestions & What's Next Styles ---- */
+    .music-filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 10px;
+      margin-bottom: 6px;
+      flex-wrap: wrap;
+    }
+    .mfb-btn {
+      all: unset;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      background: var(--panel2);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 7px 14px;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .mfb-btn:hover {
+      border-color: var(--purple);
+      background: rgba(99, 102, 241, 0.12);
+    }
+    .mfb-btn.active {
+      background: rgba(99, 102, 241, 0.22);
+      border-color: var(--purple);
+      color: #fff;
+      box-shadow: 0 0 10px rgba(99, 102, 241, 0.25);
+    }
+    .mfb-tag {
+      font-size: 10px;
+      background: var(--purple);
+      color: #fff;
+      padding: 2px 7px;
+      border-radius: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .mfb-preview-pill {
+      font-size: 11px;
+      color: var(--dim);
+      font-weight: normal;
+    }
+    .mfb-status-banner {
+      font-size: 11.5px;
+      color: #818cf8;
+      background: rgba(99, 102, 241, 0.08);
+      border: 1px dashed rgba(99, 102, 241, 0.35);
+      border-radius: 8px;
+      padding: 6px 10px;
+      margin-top: 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .sugg-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--line);
+    }
+    .sugg-header h4 {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .sugg-header p {
+      margin: 2px 0 0;
+      font-size: 11.5px;
+      color: var(--dim);
+    }
+    .sugg-refresh-btn {
+      all: unset;
+      font-size: 12px;
+      color: var(--dim);
+      background: var(--panel2);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 4px 10px;
+      cursor: pointer;
+    }
+    .sugg-refresh-btn:hover {
+      color: var(--text);
+      border-color: var(--purple);
+    }
+    .next-track-banner {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(30, 41, 59, 0.7));
+      border: 1px solid rgba(99, 102, 241, 0.4);
+      border-radius: 12px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: all 0.3s ease;
+    }
+    .next-track-banner.highlight-pulse {
+      animation: pulseBorder 1.5s 2;
+    }
+    @keyframes pulseBorder {
+      0% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7); }
+      70% { box-shadow: 0 0 0 8px rgba(99, 102, 241, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+    }
+    .ntb-thumb {
+      width: 44px;
+      height: 44px;
+      border-radius: 8px;
+      object-fit: cover;
+      flex-shrink: 0;
+      background: var(--panel2);
+    }
+    .ntb-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .ntb-badge {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 700;
+      color: #818cf8;
+      display: block;
+      margin-bottom: 2px;
+    }
+    .ntb-title {
+      font-size: 12.5px;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--text);
+    }
+    .ntb-artist {
+      font-size: 11px;
+      color: var(--dim);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .ntb-action {
+      all: unset;
+      background: var(--purple);
+      color: #fff;
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .ntb-action:hover {
+      background: #7274f0;
+    }
   </style>
 </head>
 
@@ -998,6 +1161,7 @@
           <div class="us-top">
             <div class="us-tabs" role="tablist" aria-label="Search source">
               <button type="button" class="us-tab active" data-mode="youtube" role="tab" aria-selected="true">▶ YouTube</button>
+              <button type="button" class="us-tab" data-mode="suggestions" role="tab" aria-selected="false">✨ Suggestions</button>
               <button type="button" class="us-tab" data-mode="archive" role="tab" aria-selected="false">🎵 Archive</button>
               <button type="button" class="us-tab" data-mode="lyrics" role="tab" aria-selected="false">📝 Lyrics</button>
             </div>
@@ -1016,11 +1180,42 @@
             </select>
             <button id="unifiedSearchBtn" type="button">Search</button>
           </div>
+          <div class="music-filter-bar" id="musicFilterBar" role="toolbar" aria-label="Music Filters">
+            <button type="button" class="mfb-btn active" id="filterSongsOnlyBtn" data-filter="songs-only" title="Toggle songs-only filter (excludes podcasts, interviews & talks)">
+              <span class="mfb-icon">🎵</span>
+              <span class="mfb-text">Songs Only</span>
+              <span class="mfb-tag" id="mfbSongsOnlyTag">Active</span>
+            </button>
+            <button type="button" class="mfb-btn" id="filterSuggestionsBtn" data-filter="suggestions" title="Show song suggestions based on current track">
+              <span class="mfb-icon">✨</span>
+              <span class="mfb-text">Song Suggestions</span>
+            </button>
+            <button type="button" class="mfb-btn" id="filterWhatsNextBtn" data-filter="whats-next" title="Focus on what song will play next">
+              <span class="mfb-icon">⏭️</span>
+              <span class="mfb-text">What's Next</span>
+              <span class="mfb-preview-pill" id="mfbNextPill">Upcoming</span>
+            </button>
+          </div>
+          <div class="mfb-status-banner" id="mfbStatusBanner">
+            <span>🛡️</span>
+            <span id="mfbStatusText">Songs Only Filter Active: Podcasts, interviews, and talk shows are blocked from suggestions and searches.</span>
+          </div>
           <div class="us-body" id="usBody">
             <p class="hint" id="usHint">Videos play using YouTube's embedded player.</p>
             <div class="us-pane" data-pane="youtube">
               <div class="loading" id="youtubeStatus" aria-live="polite" hidden></div>
               <div class="youtube-results" id="youtubeResults"></div>
+            </div>
+            <div class="us-pane" data-pane="suggestions" hidden>
+              <div class="sugg-header">
+                <div>
+                  <h4 id="suggTitle">Song Suggestions</h4>
+                  <p id="suggSubtitle">Related songs based on your current track (strictly songs only)</p>
+                </div>
+                <button type="button" id="refreshSuggestionsBtn" class="sugg-refresh-btn" title="Refresh suggestions">🔄 Refresh</button>
+              </div>
+              <div class="loading" id="suggestionsStatus" aria-live="polite" hidden></div>
+              <div class="youtube-results" id="suggestionsResults"></div>
             </div>
             <div class="us-pane" data-pane="archive" hidden>
               <div class="results" id="results"></div>
@@ -1088,6 +1283,15 @@
               <button type="button" id="autoPlayToggleBtn">🔁 Autoplay: Off</button>
               <button type="button" id="clearQueueBtn">Clear</button>
             </div>
+          </div>
+          <div class="next-track-banner" id="nextTrackBanner">
+            <img class="ntb-thumb" id="ntbThumb" src="" alt="" hidden>
+            <div class="ntb-info">
+              <span class="ntb-badge" id="ntbBadge">⏭️ Up Next</span>
+              <div class="ntb-title" id="ntbTitle">No upcoming song</div>
+              <div class="ntb-artist" id="ntbArtist">Turn Autoplay ON or add songs to queue</div>
+            </div>
+            <button type="button" class="ntb-action" id="ntbPlayBtn" hidden>▶ Play Now</button>
           </div>
           <p class="hint">Songs you add here always play before autoplay picks something related.</p>
           <p class="queue-status" id="queueStatus" hidden></p>
@@ -1252,7 +1456,29 @@
 
     window.MiniGPTYouTubePlayer = {
       loadVideoById(videoId) {
-        if (youtubePlayerInstance) youtubePlayerInstance.loadVideoById(videoId);
+        if (!videoId) return;
+        selectedYoutubeVideoId = videoId;
+        const playerWrap = document.getElementById('youtubePlayerWrap');
+        const status = document.getElementById('youtubePlaybackStatus');
+        const watchLink = document.getElementById('youtubeWatchLink');
+        if (status) { status.hidden = true; status.textContent = ''; }
+        if (watchLink) {
+          watchLink.href = `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`;
+          watchLink.hidden = false;
+        }
+        if (playerWrap) playerWrap.hidden = false;
+        const npcArchive = document.getElementById('npcArchive');
+        const npcEmpty = document.getElementById('npcEmpty');
+        if (npcArchive) npcArchive.hidden = true;
+        if (npcEmpty) npcEmpty.hidden = true;
+        const state = (window.MiniGPTPlayer && window.MiniGPTPlayer.getState()) || {};
+        const subtitle = document.getElementById('npcSubtitle');
+        if (subtitle && state.artist) subtitle.textContent = state.artist;
+        if (youtubePlayerInstance) {
+          youtubePlayerInstance.loadVideoById(videoId);
+        } else {
+          playYoutubeVideo({ videoId, title: state.title, channelTitle: state.artist });
+        }
       },
       playVideo() {
         if (youtubePlayerInstance) youtubePlayerInstance.playVideo();
@@ -1514,6 +1740,230 @@
           renderQueuePanel();
         };
       });
+      updateWhatsNextPreview();
+    }
+
+    /* ---- Music Filter Bar & Song Suggestions / What's Next Logic ---- */
+    let isSongsOnlyFilterActive = localStorage.getItem('mg_songs_only') !== 'false';
+    let cachedRelatedPreview = null;
+    let cachedRelatedVideoId = '';
+
+    function updateSongsOnlyUI() {
+      const btn = document.getElementById('filterSongsOnlyBtn');
+      const tag = document.getElementById('mfbSongsOnlyTag');
+      const banner = document.getElementById('mfbStatusBanner');
+      const text = document.getElementById('mfbStatusText');
+      if (btn) btn.classList.toggle('active', isSongsOnlyFilterActive);
+      if (tag) tag.textContent = isSongsOnlyFilterActive ? 'Active' : 'Off';
+      if (banner) {
+        banner.style.display = isSongsOnlyFilterActive ? 'flex' : 'none';
+      }
+      if (text) {
+        text.textContent = isSongsOnlyFilterActive
+          ? 'Songs Only Filter Active: Podcasts, interviews, and talk shows are blocked from suggestions and searches.'
+          : 'All Media: Showing all video types (songs, podcasts, interviews).';
+      }
+    }
+
+    async function loadSongSuggestions(term = '') {
+      const status = document.getElementById('suggestionsStatus');
+      const results = document.getElementById('suggestionsResults');
+      const titleEl = document.getElementById('suggTitle');
+      const subEl = document.getElementById('suggSubtitle');
+      if (!results || !status) return;
+
+      results.replaceChildren();
+      status.textContent = 'Curating song suggestions…';
+      status.hidden = false;
+
+      const state = (window.MiniGPTPlayer && window.MiniGPTPlayer.getState()) || {};
+      term = (term || '').trim();
+
+      try {
+        let videos = [];
+        if (term) {
+          if (titleEl) titleEl.textContent = `Song Suggestions for "${term}"`;
+          if (subEl) subEl.textContent = 'Filtered strictly for songs and music tracks';
+          const query = isSongsOnlyFilterActive ? `${term} song audio` : term;
+          const res = await fetch(`/api/youtube/search?q=${encodeURIComponent(query)}`);
+          const data = await res.json();
+          videos = data.videos || [];
+        } else if (state.videoId) {
+          if (titleEl) titleEl.textContent = 'Song Suggestions';
+          if (subEl) subEl.textContent = `Based on currently playing: "${state.title || 'current song'}"`;
+          const params = new URLSearchParams({
+            videoId: state.videoId,
+            title: state.title || '',
+            channelTitle: state.artist || ''
+          });
+          const res = await fetch(`/api/youtube/related?${params.toString()}`);
+          const data = await res.json();
+          videos = data.videos || [];
+          if (videos.length && state.videoId !== cachedRelatedVideoId) {
+            cachedRelatedPreview = videos;
+            cachedRelatedVideoId = state.videoId;
+            updateWhatsNextPreview();
+          }
+        } else {
+          if (titleEl) titleEl.textContent = 'Trending Song Suggestions';
+          if (subEl) subEl.textContent = 'Popular music hits (strictly songs only)';
+          const res = await fetch(`/api/youtube/search?q=${encodeURIComponent('trending popular songs audio')}`);
+          const data = await res.json();
+          videos = data.videos || [];
+        }
+
+        // Apply client-side song filter if active
+        const filterFn = window.MiniGPTPlayer?.isNonMusicTrack;
+        if (isSongsOnlyFilterActive && filterFn) {
+          videos = videos.filter(v => !filterFn(v.title));
+        }
+
+        if (!videos.length) {
+          status.textContent = 'No song suggestions available right now. Try searching above.';
+          status.hidden = false;
+          return;
+        }
+
+        status.hidden = true;
+        renderSuggestionsResults(videos);
+      } catch (err) {
+        status.textContent = 'Could not load song suggestions. Check your connection and try again.';
+        status.hidden = false;
+      }
+    }
+
+    function renderSuggestionsResults(videos) {
+      const results = document.getElementById('suggestionsResults');
+      if (!results) return;
+      results.replaceChildren();
+
+      videos.forEach(video => {
+        const result = document.createElement('div');
+        result.className = 'youtube-video-result';
+
+        const thumbBtn = document.createElement('button');
+        thumbBtn.type = 'button';
+        thumbBtn.className = 'yt-thumb-btn';
+        thumbBtn.setAttribute('aria-label', `Play ${video.title}`);
+        const thumbnail = document.createElement('img');
+        thumbnail.src = video.thumbnail;
+        thumbnail.alt = '';
+        thumbnail.loading = 'lazy';
+        thumbBtn.appendChild(thumbnail);
+        thumbBtn.onclick = () => playYoutubeVideo(video);
+
+        const info = document.createElement('div');
+        info.className = 'yt-info';
+        const title = document.createElement('button');
+        title.type = 'button';
+        title.className = 'youtube-video-title yt-title-btn';
+        title.textContent = video.title;
+        title.onclick = () => playYoutubeVideo(video);
+        const channel = document.createElement('span');
+        channel.className = 'youtube-video-channel';
+        channel.textContent = video.channelTitle;
+        const actions = document.createElement('div');
+        actions.className = 'yt-actions';
+        const queueBtn = document.createElement('button');
+        queueBtn.type = 'button';
+        queueBtn.className = 'yt-action';
+        queueBtn.textContent = '+ Queue';
+        queueBtn.onclick = () => {
+          window.MiniGPTPlayer.addToQueue({ ...video, provider: 'youtube' });
+          renderQueuePanel();
+        };
+        const nextBtn = document.createElement('button');
+        nextBtn.type = 'button';
+        nextBtn.className = 'yt-action';
+        nextBtn.textContent = 'Play Next';
+        nextBtn.onclick = () => {
+          window.MiniGPTPlayer.playNext({ ...video, provider: 'youtube' });
+          renderQueuePanel();
+        };
+        actions.append(queueBtn, nextBtn);
+        info.append(title, channel, actions);
+
+        result.append(thumbBtn, info);
+        results.appendChild(result);
+      });
+    }
+
+    async function updateWhatsNextPreview() {
+      const banner = document.getElementById('nextTrackBanner');
+      const thumb = document.getElementById('ntbThumb');
+      const badge = document.getElementById('ntbBadge');
+      const title = document.getElementById('ntbTitle');
+      const artist = document.getElementById('ntbArtist');
+      const playBtn = document.getElementById('ntbPlayBtn');
+      const nextPill = document.getElementById('mfbNextPill');
+      if (!banner || !badge || !title || !artist || !playBtn) return;
+
+      const state = (window.MiniGPTPlayer && window.MiniGPTPlayer.getState()) || {};
+      const queue = state.upNext || [];
+
+      if (queue.length > 0) {
+        const first = queue[0];
+        if (thumb) {
+          thumb.src = first.artwork || '';
+          thumb.hidden = !first.artwork;
+        }
+        badge.textContent = '⏭️ Queued Next (#1 in queue)';
+        title.textContent = first.title || 'Untitled track';
+        artist.textContent = first.artist || 'Queued song';
+        playBtn.hidden = false;
+        playBtn.textContent = '▶ Play Now';
+        playBtn.onclick = () => {
+          window.MiniGPTPlayer.playQueueItem(0);
+          renderQueuePanel();
+        };
+        if (nextPill) nextPill.textContent = 'Queued: ' + (first.title.length > 14 ? first.title.slice(0, 14) + '…' : first.title);
+        return;
+      }
+
+      if (state.autoPlay && state.provider === 'youtube' && state.videoId) {
+        // Find top unplayed candidate from cache or fetch
+        if (!cachedRelatedPreview || cachedRelatedVideoId !== state.videoId) {
+          cachedRelatedVideoId = state.videoId;
+          try {
+            const res = await fetch(`/api/youtube/related?videoId=${state.videoId}&title=${encodeURIComponent(state.title || '')}&channelTitle=${encodeURIComponent(state.artist || '')}`);
+            const data = await res.json();
+            cachedRelatedPreview = data.videos || [];
+          } catch (e) {
+            cachedRelatedPreview = [];
+          }
+        }
+
+        const filterFn = window.MiniGPTPlayer?.isNonMusicTrack;
+        const candidate = (cachedRelatedPreview || []).find(v => v && v.videoId && v.videoId !== state.videoId && (!isSongsOnlyFilterActive || (filterFn ? !filterFn(v.title) : true)));
+        if (candidate) {
+          if (thumb) {
+            thumb.src = candidate.thumbnail || '';
+            thumb.hidden = !candidate.thumbnail;
+          }
+          badge.textContent = '🔁 Autoplay Next (Suggested Song)';
+          title.textContent = candidate.title || 'Suggested song';
+          artist.textContent = candidate.channelTitle || 'YouTube';
+          playBtn.hidden = false;
+          playBtn.textContent = '▶ Play Next Song';
+          playBtn.onclick = () => window.MiniGPTPlayer.playYouTubeTrack(candidate);
+          if (nextPill) nextPill.textContent = 'Autoplay: ' + (candidate.title.length > 14 ? candidate.title.slice(0, 14) + '…' : candidate.title);
+          return;
+        }
+      }
+
+      if (thumb) thumb.hidden = true;
+      playBtn.hidden = true;
+      if (state.autoPlay) {
+        badge.textContent = '🔁 Autoplay: On';
+        title.textContent = 'Will suggest a song when track ends';
+        artist.textContent = 'Strictly songs only (podcasts blocked)';
+        if (nextPill) nextPill.textContent = 'Autoplay On';
+      } else {
+        badge.textContent = '⏹️ End of Queue';
+        title.textContent = 'No upcoming song';
+        artist.textContent = 'Turn Autoplay ON or add a song to Up Next';
+        if (nextPill) nextPill.textContent = 'Autoplay Off';
+      }
     }
 
     document.getElementById('autoPlayToggleBtn').onclick = () => {
@@ -1621,6 +2071,7 @@
       seek.value = state.duration ? ((state.time || 0) / state.duration) * 100 : 0;
       document.getElementById('npcCur').textContent = fmtTime(state.time || 0);
       document.getElementById('npcDur').textContent = fmtTime(state.duration || 0);
+      updateWhatsNextPreview();
     }
     document.addEventListener('mg-queue-updated', renderNowPlaying);
     document.getElementById('miniAudio').addEventListener('timeupdate', renderNowPlaying);
@@ -1628,10 +2079,17 @@
     document.getElementById('miniAudio').addEventListener('pause', renderNowPlaying);
     renderNowPlaying();
 
-    /* ---- Recently Played: built from the shared playback history so it
-       reflects everything actually played (Internet Archive + YouTube),
-       deduped by normalized title so re-plays of the same song only
-       appear once, most recent first. ---- */
+    /* ---- Recently Played: displays up to the latest 4 songs played in order,
+       with all song details (title, artist, artwork, duration, provider badge). ---- */
+    function escapeXml(s) {
+      if (!s) return '';
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
     function rhArtwork(item) {
       return item.artwork
         ? `background-image:url('${item.artwork}');`
@@ -1642,14 +2100,11 @@
       const history = state.history || [];
       const grid = document.getElementById('recentHistoryGrid');
       const emptyMsg = document.getElementById('recentHistoryEmpty');
-      const seenTitles = new Set();
       const items = [];
-      for (let i = history.length - 1; i >= 0 && items.length < 8; i--) {
+      // Latest 4 songs played, most recent first
+      for (let i = history.length - 1; i >= 0 && items.length < 4; i--) {
         const item = history[i];
-        const key = item.normTitle || item.title;
-        if (key && seenTitles.has(key)) continue;
-        if (key) seenTitles.add(key);
-        items.push(item);
+        if (item) items.push(item);
       }
       if (!items.length) {
         grid.innerHTML = '';
@@ -1660,12 +2115,12 @@
       grid.innerHTML = items.map((item, i) => `
     <button type="button" class="rh-card" data-i="${i}">
       <div class="rh-thumb" style="${rhArtwork(item)}"><span class="play">▶</span></div>
-      <div class="rh-title">${item.title}</div>
+      <div class="rh-title">${escapeXml(item.title || 'Untitled')}</div>
       <div class="rh-tags">
         <span class="rh-tag ${item.provider === 'archive' ? 'archive' : ''}">${item.provider === 'youtube' ? 'YouTube' : 'Archive'}</span>
       </div>
       <div class="rh-meta">
-        <span class="rh-time">${item.artist || ''}</span>
+        <span class="rh-time">${escapeXml(item.artist || (item.provider === 'youtube' ? 'YouTube' : 'Internet Archive'))}</span>
         <span class="rh-time">${item.duration ? fmtTime(item.duration) : ''}</span>
       </div>
     </button>`).join('');
@@ -1764,6 +2219,7 @@
        anything, and "Minimize" tucks the results away to save space. ---- */
     const SEARCH_MODES = {
       youtube: { placeholder: 'Search YouTube for a song or artist…', hint: "Videos play using YouTube's embedded player.", run: searchYouTube },
+      suggestions: { placeholder: 'Filter suggestions by song, artist or mood…', hint: 'Showing pure song suggestions related to your music (strictly songs only).', run: loadSongSuggestions },
       archive: { placeholder: 'Search royalty-free songs or artists…', hint: 'Streams full royalty-free tracks from Internet Archive.', run: runSearch },
       lyrics: { placeholder: 'Enter a song title or artist…', hint: 'Find lyrics for a song (via LRCLIB).', run: findLyrics }
     };
@@ -1786,6 +2242,9 @@
       document.getElementById('usHint').textContent = SEARCH_MODES[mode].hint;
       usPreset.hidden = mode !== 'archive';
       setSearchCollapsed(false);
+      if (mode === 'suggestions') {
+        loadSongSuggestions(usInput.value.trim());
+      }
     }
     function setSearchCollapsed(collapsed) {
       usBody.hidden = collapsed;
@@ -1808,6 +2267,46 @@
       usInput.value = term;
       runUnifiedSearch(term);
     });
+
+    /* ---- Filter Bar Event Handlers ---- */
+    document.getElementById('filterSongsOnlyBtn').onclick = () => {
+      isSongsOnlyFilterActive = !isSongsOnlyFilterActive;
+      localStorage.setItem('mg_songs_only', String(isSongsOnlyFilterActive));
+      updateSongsOnlyUI();
+      if (searchMode === 'suggestions') {
+        loadSongSuggestions(usInput.value.trim());
+      } else if (searchMode === 'youtube' && usInput.value.trim()) {
+        searchYouTube(usInput.value.trim());
+      }
+      updateWhatsNextPreview();
+    };
+
+    document.getElementById('filterSuggestionsBtn').onclick = () => {
+      setSearchMode('suggestions');
+      loadSongSuggestions(usInput.value.trim());
+      const usBody = document.getElementById('usBody');
+      if (usBody) usBody.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    };
+
+    document.getElementById('filterWhatsNextBtn').onclick = () => {
+      updateWhatsNextPreview();
+      const banner = document.getElementById('nextTrackBanner');
+      const queueHeading = document.getElementById('queueHeading');
+      if (queueHeading) queueHeading.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (banner) {
+        banner.classList.remove('highlight-pulse');
+        void banner.offsetWidth;
+        banner.classList.add('highlight-pulse');
+      }
+    };
+
+    const refreshSuggestionsBtn = document.getElementById('refreshSuggestionsBtn');
+    if (refreshSuggestionsBtn) {
+      refreshSuggestionsBtn.onclick = () => loadSongSuggestions(usInput.value.trim());
+    }
+
+    updateSongsOnlyUI();
+    updateWhatsNextPreview();
 
     const params = new URLSearchParams(location.search);
     if (params.get('q')) {
